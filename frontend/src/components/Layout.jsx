@@ -1,0 +1,34 @@
+import { Outlet, Link, useLocation } from 'react-router-dom';
+
+function Layout({ user, onLogout }) {
+  const location = useLocation();
+
+  const isActive = (path) => {
+    return location.pathname === path ? 'nav-link active' : 'nav-link';
+  };
+
+  return (
+    <div className="app">
+      <nav className="navbar">
+        <div className="nav-brand">Bar Tracker</div>
+        <div className="nav-links">
+          <Link to="/" className={isActive('/')}>Dashboard</Link>
+          <Link to="/sales" className={isActive('/sales')}>Sales</Link>
+          <Link to="/expenses" className={isActive('/expenses')}>Expenses</Link>
+          {(user.role === 'admin' || user.role === 'manager') && (
+            <Link to="/reports" className={isActive('/reports')}>Reports</Link>
+          )}
+        </div>
+        <div className="nav-user">
+          <span>{user.fullName} ({user.role})</span>
+          <button onClick={onLogout} className="btn btn-sm">Logout</button>
+        </div>
+      </nav>
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+export default Layout;

@@ -1,0 +1,63 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { authService } from './services/auth';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Sales from './pages/Sales';
+import Expenses from './pages/Expenses';
+import Reports from './pages/Reports';
+import Layout from './components/Layout';
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser);
+    setLoading(false);
+  }, []);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setUser(null);
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/"
+          element={
+            user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+          }
+        >
+          <Route index element={<Dashboard user={user} />} />
+          <Route path="sales" element={<Sales user={user} />} />
+          <Route path="expenses" element={<Expenses user={user} />} />
+          <Route path="reports" element={<Reports user={user} />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;

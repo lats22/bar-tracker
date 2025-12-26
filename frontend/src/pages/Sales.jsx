@@ -92,8 +92,8 @@ function Sales({ user }) {
                 onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
               >
                 <option value="cash">Cash</option>
+                <option value="transfer">Transfer</option>
                 <option value="card">Card</option>
-                <option value="mobile">Mobile Payment</option>
               </select>
             </div>
             <div className="form-group">

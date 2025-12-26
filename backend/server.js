@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -13,12 +14,18 @@ const reportsRoutes = require('./routes/reports');
 
 // Import database config to test connection
 const pool = require('./config/database');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security middleware
-app.use(helmet());
+// Security middleware - configure helmet for serving frontend
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP for frontend assets
+  })
+);
 
 // CORS configuration
 const corsOptions = {
@@ -72,30 +79,150 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reports', reportsRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Bar Tracker API',
-    version: '1.0.0',
-    description: 'Sales and Expense Tracking System',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth/*',
-      sales: '/api/sales/*',
-      expenses: '/api/expenses/*',
-      reports: '/api/reports/*'
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../frontend/public');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-  });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Get file extension from original filename
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `login-background${ext}`);
+  }
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Route ${req.method} ${req.url} not found`,
-    availableEndpoints: ['/api/auth', '/api/sales', '/api/expenses', '/api/reports']
-  });
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
 });
+
+// Upload endpoint
+app.post('/api/upload-background', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded');
+  }
+
+  // Remove old background images with different extensions
+  const publicDir = path.join(__dirname, '../frontend/public');
+  const distDir = path.join(__dirname, '../frontend/dist');
+  const oldExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+  oldExtensions.forEach(ext => {
+    const publicFile = path.join(publicDir, `login-background${ext}`);
+    const distFile = path.join(distDir, `login-background${ext}`);
+    if (fs.existsSync(publicFile) && publicFile !== req.file.path) {
+      fs.unlinkSync(publicFile);
+    }
+    if (fs.existsSync(distFile)) {
+      fs.unlinkSync(distFile);
+    }
+  });
+
+  // Copy to dist folder
+  const destPath = path.join(distDir, req.file.filename);
+  fs.copyFileSync(req.file.path, destPath);
+
+  res.send('Image uploaded successfully');
+});
+
+// Upload favicon endpoint
+app.post('/api/upload-favicon', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded');
+  }
+
+  const publicDir = path.join(__dirname, '../frontend/public');
+  const distDir = path.join(__dirname, '../frontend/dist');
+
+  // Copy uploaded file to create favicon.ico
+  const faviconPath = path.join(publicDir, 'favicon.ico');
+  const distFaviconPath = path.join(distDir, 'favicon.ico');
+
+  fs.copyFileSync(req.file.path, faviconPath);
+  fs.copyFileSync(req.file.path, distFaviconPath);
+
+  // Also create icon-192.png and icon-512.png for PWA
+  const icon192Path = path.join(publicDir, 'icon-192.png');
+  const icon512Path = path.join(publicDir, 'icon-512.png');
+  const distIcon192Path = path.join(distDir, 'icon-192.png');
+  const distIcon512Path = path.join(distDir, 'icon-512.png');
+
+  fs.copyFileSync(req.file.path, icon192Path);
+  fs.copyFileSync(req.file.path, icon512Path);
+  fs.copyFileSync(req.file.path, distIcon192Path);
+  fs.copyFileSync(req.file.path, distIcon512Path);
+
+  // Remove the temporary upload file
+  fs.unlinkSync(req.file.path);
+
+  res.send('Favicon uploaded successfully');
+});
+
+// Serve background image with correct extension
+app.get('/login-background', (req, res) => {
+  const publicDir = path.join(__dirname, '../frontend/public');
+  const distDir = path.join(__dirname, '../frontend/dist');
+  const extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+  // Check dist folder first (production), then public folder
+  for (const dir of [distDir, publicDir]) {
+    for (const ext of extensions) {
+      const filePath = path.join(dir, `login-background${ext}`);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+    }
+  }
+
+  res.status(404).send('Background image not found');
+});
+
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendPath));
+
+  // Serve index.html for all non-API routes (SPA fallback)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+} else {
+  // Root endpoint for development
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'Siara Bar API',
+      version: '1.0.0',
+      description: 'Sales and Expense Tracking System',
+      endpoints: {
+        health: '/health',
+        auth: '/api/auth/*',
+        sales: '/api/sales/*',
+        expenses: '/api/expenses/*',
+        reports: '/api/reports/*'
+      }
+    });
+  });
+
+  // 404 handler for development
+  app.use((req, res) => {
+    res.status(404).json({
+      error: 'Not Found',
+      message: `Route ${req.method} ${req.url} not found`,
+      availableEndpoints: ['/api/auth', '/api/sales', '/api/expenses', '/api/reports']
+    });
+  });
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -116,7 +243,7 @@ async function startServer() {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Bar Tracker API Server running on port ${PORT}`);
+      console.log(`\n🚀 Siara Bar API Server running on port ${PORT}`);
       console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 API URL: http://localhost:${PORT}`);
       console.log(`💚 Health Check: http://localhost:${PORT}/health\n`);

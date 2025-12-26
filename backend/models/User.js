@@ -16,19 +16,19 @@ class User {
     return result.rows[0];
   }
 
-  // Find user by username
+  // Find user by username (case-insensitive)
   static async findByUsername(username) {
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
       [username]
     );
     return result.rows[0];
   }
 
-  // Find user by email
+  // Find user by email (case-insensitive)
   static async findByEmail(email) {
     const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
       [email]
     );
     return result.rows[0];
@@ -66,18 +66,46 @@ class User {
 
   // Update user
   static async update(id, updates) {
-    const allowedFields = ['email', 'full_name', 'role', 'is_active'];
-    const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
+    const setClauses = [];
+    const values = [id];
+    let paramCount = 1;
 
-    if (fields.length === 0) {
+    // Handle regular fields
+    if (updates.email) {
+      paramCount++;
+      setClauses.push(`email = $${paramCount}`);
+      values.push(updates.email);
+    }
+    if (updates.fullName) {
+      paramCount++;
+      setClauses.push(`full_name = $${paramCount}`);
+      values.push(updates.fullName);
+    }
+    if (updates.role) {
+      paramCount++;
+      setClauses.push(`role = $${paramCount}`);
+      values.push(updates.role);
+    }
+    if (updates.is_active !== undefined) {
+      paramCount++;
+      setClauses.push(`is_active = $${paramCount}`);
+      values.push(updates.is_active);
+    }
+
+    // Handle password separately (needs hashing)
+    if (updates.password) {
+      const hashedPassword = await bcrypt.hash(updates.password, 10);
+      paramCount++;
+      setClauses.push(`password_hash = $${paramCount}`);
+      values.push(hashedPassword);
+    }
+
+    if (setClauses.length === 0) {
       throw new Error('No valid fields to update');
     }
 
-    const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
-    const values = [id, ...fields.map(field => updates[field])];
-
     const result = await pool.query(
-      `UPDATE users SET ${setClause} WHERE id = $1
+      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $1
        RETURNING id, username, email, full_name, role, is_active`,
       values
     );

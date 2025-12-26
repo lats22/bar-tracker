@@ -10,7 +10,7 @@ function Layout({ user, onLogout }) {
   return (
     <div className="app">
       <nav className="navbar">
-        <div className="nav-brand">Bar Tracker</div>
+        <div className="nav-brand">Siara Bar</div>
         <div className="nav-links">
           <Link to="/" className={isActive('/')}>Dashboard</Link>
           <Link to="/sales" className={isActive('/sales')}>Sales</Link>
@@ -18,9 +18,13 @@ function Layout({ user, onLogout }) {
           {(user.role === 'admin' || user.role === 'manager') && (
             <Link to="/reports" className={isActive('/reports')}>Reports</Link>
           )}
+          {user.role === 'admin' && (
+            <Link to="/users" className={isActive('/users')}>Users</Link>
+          )}
         </div>
         <div className="nav-user">
           <span>{user.fullName} ({user.role})</span>
+          <Link to="/profile" className="btn btn-sm">Profile</Link>
           <button onClick={onLogout} className="btn btn-sm">Logout</button>
         </div>
       </nav>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Images - Siara Bar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        .upload-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .upload-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-box h2 {
+            margin-top: 0;
+            color: #1a1a1a;
+            font-size: 1.3rem;
+        }
+        .upload-box p {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            width: 100%;
+            border: 2px dashed #3b82f6;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #10b981;
+            color: white;
+        }
+        .error {
+            background: #ef4444;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .upload-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Siara Bar - Upload Images</h1>
+    <p class="subtitle">Upload your custom images for the website</p>
+
+    <div class="upload-container">
+        <div class="upload-box">
+            <h2>📷 Login Background</h2>
+            <p>Upload background image for login page (JPG, PNG, GIF, WEBP)</p>
+            <input type="file" id="backgroundInput" accept="image/*">
+            <button onclick="uploadBackground()">Upload Background</button>
+            <div id="backgroundMessage" class="message"></div>
+        </div>
+
+        <div class="upload-box">
+            <h2>🔖 Tab Icon (SR Logo)</h2>
+            <p>Upload your "SR" logo for browser tab icon (PNG recommended)</p>
+            <input type="file" id="faviconInput" accept="image/*">
+            <button onclick="uploadFavicon()">Upload Tab Icon</button>
+            <div id="faviconMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadBackground() {
+            const fileInput = document.getElementById('backgroundInput');
+            const messageDiv = document.getElementById('backgroundMessage');
+            const button = event.target;
+
+            if (!fileInput.files.length) {
+                showMessage(messageDiv, 'Please select a file first', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            button.disabled = true;
+            button.textContent = 'Uploading...';
+
+            try {
+                const response = await fetch('/api/upload-background', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    showMessage(messageDiv, 'Background uploaded successfully!', 'success');
+                } else {
+                    showMessage(messageDiv, 'Upload failed: ' + await response.text(), 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Upload error: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Upload Background';
+            }
+        }
+
+        async function uploadFavicon() {
+            const fileInput = document.getElementById('faviconInput');
+            const messageDiv = document.getElementById('faviconMessage');
+            const button = event.target;
+
+            if (!fileInput.files.length) {
+                showMessage(messageDiv, 'Please select a file first', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            button.disabled = true;
+            button.textContent = 'Uploading...';
+
+            try {
+                const response = await fetch('/api/upload-favicon', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    showMessage(messageDiv, 'Tab icon uploaded successfully! Refresh the page to see changes.', 'success');
+                } else {
+                    showMessage(messageDiv, 'Upload failed: ' + await response.text(), 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Upload error: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Upload Tab Icon';
+            }
+        }
+
+        function showMessage(element, text, type) {
+            element.textContent = text;
+            element.className = 'message ' + type;
+            element.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

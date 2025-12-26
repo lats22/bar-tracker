@@ -53,5 +53,17 @@ export const authService = {
   async register(userData) {
     const response = await api.post('/auth/register', userData);
     return response.data;
+  },
+
+  // Update user (admin only)
+  async updateUser(userId, userData) {
+    const response = await api.put(`/auth/users/${userId}`, userData);
+    return response.data;
+  },
+
+  // Delete user (admin only)
+  async deleteUser(userId) {
+    const response = await api.delete(`/auth/users/${userId}`);
+    return response.data;
   }
 };

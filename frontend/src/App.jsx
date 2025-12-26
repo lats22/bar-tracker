@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
+import Profile from './pages/Profile';
+import Users from './pages/Users';
 import Layout from './components/Layout';
 
 function App() {
@@ -54,7 +56,11 @@ function App() {
           <Route path="sales" element={<Sales user={user} />} />
           <Route path="expenses" element={<Expenses user={user} />} />
           <Route path="reports" element={<Reports user={user} />} />
+          <Route path="profile" element={<Profile user={user} />} />
+          {user && user.role === 'admin' && <Route path="users" element={<Users user={user} />} />}
         </Route>
+        {/* Catch-all route - redirect to login if not authenticated, otherwise to home */}
+        <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );

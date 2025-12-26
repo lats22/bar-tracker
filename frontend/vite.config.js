@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Bar Tracker',
-        short_name: 'BarTracker',
-        description: 'Sales and Expense Tracker for your bar',
+        name: 'Siara Bar',
+        short_name: 'SiaraBar',
+        description: 'Sales and Expense Tracker for Siara Bar',
         theme_color: '#1a1a1a',
         background_color: '#ffffff',
         display: 'standalone',

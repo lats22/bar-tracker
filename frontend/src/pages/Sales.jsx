@@ -10,7 +10,7 @@ function Sales({ user }) {
   const [selectedDate, setSelectedDate] = useState(getToday());
 
   const categories = ['drinks', 'ladydrink', 'barfine', 'other'];
-  const paymentMethods = ['cash', 'transfer', 'card'];
+  const paymentMethods = ['cash', 'transfer'];
 
   // Initialize grid data
   const initializeGridData = () => {
@@ -158,7 +158,6 @@ function Sales({ user }) {
                     <th style={{ width: '120px' }}>Category</th>
                     <th>Cash</th>
                     <th>Transfer</th>
-                    <th>Card</th>
                     <th>Total</th>
                   </tr>
                 </thead>

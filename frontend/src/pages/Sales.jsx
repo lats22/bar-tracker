@@ -8,6 +8,7 @@ function Sales({ user }) {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getToday());
+  const [editingDate, setEditingDate] = useState(null);
 
   const categories = ['drinks', 'barfine'];
   const paymentMethods = ['cash', 'transfer'];
@@ -54,11 +55,51 @@ function Sales({ user }) {
     }));
   };
 
+  const handleEditDate = (date) => {
+    // Load sales for this date into the form
+    const dateSales = sales.filter(sale => sale.date === date);
+
+    const newGridData = initializeGridData();
+    let ladyDrinkCount = 0;
+
+    dateSales.forEach(sale => {
+      if (sale.category === 'ladydrink') {
+        ladyDrinkCount = sale.amount;
+      } else {
+        newGridData[sale.category][sale.payment_method] = sale.amount;
+      }
+    });
+
+    setGridData(newGridData);
+    setLadyDrinks(ladyDrinkCount > 0 ? ladyDrinkCount.toString() : '');
+    setSelectedDate(date);
+    setEditingDate(date);
+    setShowForm(true);
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setGridData(initializeGridData());
+    setLadyDrinks('');
+    setSelectedDate(getToday());
+    setEditingDate(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // If editing, delete all sales for this date first
+      if (editingDate) {
+        const dateSales = sales.filter(sale => sale.date === editingDate);
+        const deletePromises = dateSales.map(sale => salesService.delete(sale.id));
+        await Promise.all(deletePromises);
+      }
+
       // Create sales for each non-zero amount
       const promises = [];
 
@@ -100,11 +141,12 @@ function Sales({ user }) {
       setGridData(initializeGridData());
       setLadyDrinks('');
       setSelectedDate(getToday());
+      setEditingDate(null);
       setShowForm(false);
       loadSales();
-      alert('Sales entries created successfully!');
+      alert(editingDate ? 'Sales updated successfully!' : 'Sales entries created successfully!');
     } catch (err) {
-      alert('Failed to create sales: ' + (err.response?.data?.error || err.message));
+      alert('Failed to save sales: ' + (err.response?.data?.error || err.message));
     } finally {
       setLoading(false);
     }
@@ -161,14 +203,16 @@ function Sales({ user }) {
     <div className="page">
       <div className="page-header">
         <h1>Sales</h1>
-        <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-          {showForm ? 'Cancel' : '+ Add Daily Sales'}
-        </button>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="btn btn-primary">
+            + Add Daily Sales
+          </button>
+        )}
       </div>
 
       {showForm && (
         <div className="card mb-4">
-          <h3>Daily Sales Entry</h3>
+          <h3>{editingDate ? 'Edit Daily Sales' : 'New Daily Sales'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-group" style={{ marginBottom: '20px' }}>
               <label style={{ fontWeight: 'bold' }}>Date</label>
@@ -177,6 +221,7 @@ function Sales({ user }) {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 required
+                disabled={!!editingDate}
                 style={{ maxWidth: '200px' }}
               />
             </div>
@@ -267,9 +312,12 @@ function Sales({ user }) {
               </table>
             </div>
 
-            <div style={{ marginTop: '20px' }}>
+            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
               <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Saving...' : 'Save All Sales'}
+                {loading ? 'Saving...' : (editingDate ? 'Update Sales' : 'Save All Sales')}
+              </button>
+              <button type="button" onClick={handleCancelEdit} className="btn" style={{ backgroundColor: '#666', color: 'white' }}>
+                Cancel
               </button>
             </div>
           </form>
@@ -291,7 +339,21 @@ function Sales({ user }) {
               <div key={date} style={{ padding: '15px', borderBottom: '1px solid #eee' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <h4 style={{ margin: 0 }}>{formatDisplayDate(date)}</h4>
-                  <div className="stat-value success">{formatCurrency(data.total)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div className="stat-value success">{formatCurrency(data.total)}</div>
+                    <button
+                      onClick={() => handleEditDate(date)}
+                      className="btn"
+                      style={{
+                        padding: '5px 15px',
+                        fontSize: '14px',
+                        backgroundColor: '#2196F3',
+                        color: 'white'
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>

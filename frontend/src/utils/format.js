@@ -1,12 +1,12 @@
 export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('th-TH', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'THB'
   }).format(amount || 0);
 };
 
 export const formatNumber = (num) => {
-  return new Intl.NumberFormat('en-US').format(num || 0);
+  return new Intl.NumberFormat('th-TH').format(num || 0);
 };
 
 export const formatPercent = (value) => {

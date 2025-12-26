@@ -7,13 +7,24 @@ function Sales({ user }) {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    date: getToday(),
-    amount: '',
-    paymentMethod: 'cash',
-    category: 'drinks',
-    notes: ''
-  });
+  const [selectedDate, setSelectedDate] = useState(getToday());
+
+  const categories = ['drinks', 'ladydrink', 'barfine', 'other'];
+  const paymentMethods = ['cash', 'transfer', 'card'];
+
+  // Initialize grid data
+  const initializeGridData = () => {
+    const data = {};
+    categories.forEach(cat => {
+      data[cat] = {};
+      paymentMethods.forEach(pm => {
+        data[cat][pm] = '';
+      });
+    });
+    return data;
+  };
+
+  const [gridData, setGridData] = useState(initializeGridData());
 
   useEffect(() => {
     loadSales();
@@ -32,135 +43,236 @@ function Sales({ user }) {
     }
   };
 
+  const handleGridChange = (category, paymentMethod, value) => {
+    setGridData(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [paymentMethod]: value
+      }
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      await salesService.create(formData);
-      setFormData({
-        date: getToday(),
-        amount: '',
-        paymentMethod: 'cash',
-        category: 'drinks',
-        notes: ''
+      // Create sales for each non-zero amount
+      const promises = [];
+      categories.forEach(category => {
+        paymentMethods.forEach(paymentMethod => {
+          const amount = parseFloat(gridData[category][paymentMethod]);
+          if (amount && amount > 0) {
+            promises.push(
+              salesService.create({
+                date: selectedDate,
+                amount: amount,
+                paymentMethod: paymentMethod,
+                category: category,
+                notes: ''
+              })
+            );
+          }
+        });
       });
+
+      await Promise.all(promises);
+
+      // Reset form
+      setGridData(initializeGridData());
+      setSelectedDate(getToday());
       setShowForm(false);
       loadSales();
+      alert('Sales entries created successfully!');
     } catch (err) {
-      alert('Failed to create sale: ' + (err.response?.data?.error || err.message));
+      alert('Failed to create sales: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Group sales by date
+  const groupSalesByDate = () => {
+    const grouped = {};
+    sales.forEach(sale => {
+      const date = sale.date;
+      if (!grouped[date]) {
+        grouped[date] = {
+          total: 0,
+          categories: {},
+          payments: {}
+        };
+      }
+
+      const amount = parseFloat(sale.amount);
+      grouped[date].total += amount;
+
+      // Sum by category
+      if (!grouped[date].categories[sale.category]) {
+        grouped[date].categories[sale.category] = 0;
+      }
+      grouped[date].categories[sale.category] += amount;
+
+      // Sum by payment method
+      if (!grouped[date].payments[sale.payment_method]) {
+        grouped[date].payments[sale.payment_method] = 0;
+      }
+      grouped[date].payments[sale.payment_method] += amount;
+    });
+
+    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+  };
+
   const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.amount), 0);
+  const dailySales = groupSalesByDate();
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>Sales</h1>
         <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-          {showForm ? 'Cancel' : '+ Add Sale'}
+          {showForm ? 'Cancel' : '+ Add Daily Sales'}
         </button>
       </div>
 
       {showForm && (
         <div className="card mb-4">
-          <h3>New Sale</h3>
-          <form onSubmit={handleSubmit} className="form-grid">
-            <div className="form-group">
-              <label>Date</label>
+          <h3>Daily Sales Entry</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label style={{ fontWeight: 'bold' }}>Date</label>
               <input
                 type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
                 required
+                style={{ maxWidth: '200px' }}
               />
             </div>
-            <div className="form-group">
-              <label>Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                required
-                placeholder="0.00"
-              />
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ minWidth: '500px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '120px' }}>Category</th>
+                    <th>Cash</th>
+                    <th>Transfer</th>
+                    <th>Card</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map(category => {
+                    const rowTotal = paymentMethods.reduce((sum, pm) => {
+                      const val = parseFloat(gridData[category][pm]) || 0;
+                      return sum + val;
+                    }, 0);
+
+                    return (
+                      <tr key={category}>
+                        <td style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
+                          {category === 'ladydrink' ? 'LadyDrink' : category}
+                        </td>
+                        {paymentMethods.map(pm => (
+                          <td key={pm}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={gridData[category][pm]}
+                              onChange={(e) => handleGridChange(category, pm, e.target.value)}
+                              placeholder="0.00"
+                              style={{ width: '100%', maxWidth: '120px' }}
+                            />
+                          </td>
+                        ))}
+                        <td style={{ fontWeight: 'bold' }}>
+                          {rowTotal > 0 ? formatCurrency(rowTotal) : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                    <td>Total</td>
+                    {paymentMethods.map(pm => {
+                      const colTotal = categories.reduce((sum, cat) => {
+                        const val = parseFloat(gridData[cat][pm]) || 0;
+                        return sum + val;
+                      }, 0);
+                      return (
+                        <td key={pm}>
+                          {colTotal > 0 ? formatCurrency(colTotal) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td>
+                      {formatCurrency(
+                        categories.reduce((sum, cat) => {
+                          return sum + paymentMethods.reduce((psum, pm) => {
+                            return psum + (parseFloat(gridData[cat][pm]) || 0);
+                          }, 0);
+                        }, 0)
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <div className="form-group">
-              <label>Payment Method</label>
-              <select
-                value={formData.paymentMethod}
-                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-              >
-                <option value="cash">Cash</option>
-                <option value="transfer">Transfer</option>
-                <option value="card">Card</option>
-              </select>
+
+            <div style={{ marginTop: '20px' }}>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? 'Saving...' : 'Save All Sales'}
+              </button>
             </div>
-            <div className="form-group">
-              <label>Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="drinks">Drinks</option>
-                <option value="ladydrink">LadyDrink</option>
-                <option value="barfine">Barfine</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div className="form-group full-width">
-              <label>Notes</label>
-              <input
-                type="text"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Optional notes"
-              />
-            </div>
-            <button type="submit" className="btn btn-primary">Save Sale</button>
           </form>
         </div>
       )}
 
       <div className="card">
         <div className="card-header">
-          <h3>Recent Sales</h3>
+          <h3>Daily Sales Summary</h3>
           <div className="stat-value success">{formatCurrency(totalSales)}</div>
         </div>
         {loading ? (
           <p>Loading...</p>
+        ) : dailySales.length === 0 ? (
+          <p style={{ padding: '20px', textAlign: 'center' }}>No sales found</p>
         ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Payment</th>
-                  <th>Category</th>
-                  <th>Notes</th>
-                  <th>By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center' }}>No sales found</td>
-                  </tr>
-                ) : (
-                  sales.map((sale) => (
-                    <tr key={sale.id}>
-                      <td>{formatDisplayDate(sale.date)}</td>
-                      <td className="success">{formatCurrency(sale.amount)}</td>
-                      <td>{sale.payment_method}</td>
-                      <td>{sale.category}</td>
-                      <td>{sale.notes}</td>
-                      <td>{sale.created_by_name}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div style={{ overflowX: 'auto' }}>
+            {dailySales.map(([date, data]) => (
+              <div key={date} style={{ padding: '15px', borderBottom: '1px solid #eee' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0 }}>{formatDisplayDate(date)}</h4>
+                  <div className="stat-value success">{formatCurrency(data.total)}</div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                  <div>
+                    <strong>By Category:</strong>
+                    <ul style={{ listStyle: 'none', padding: '5px 0', margin: 0 }}>
+                      {Object.entries(data.categories).map(([cat, amount]) => (
+                        <li key={cat} style={{ padding: '3px 0' }}>
+                          <span style={{ textTransform: 'capitalize' }}>
+                            {cat === 'ladydrink' ? 'LadyDrink' : cat}:
+                          </span> {formatCurrency(amount)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <strong>By Payment:</strong>
+                    <ul style={{ listStyle: 'none', padding: '5px 0', margin: 0 }}>
+                      {Object.entries(data.payments).map(([pm, amount]) => (
+                        <li key={pm} style={{ padding: '3px 0' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{pm}:</span> {formatCurrency(amount)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

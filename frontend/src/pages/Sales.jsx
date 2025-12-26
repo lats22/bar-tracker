@@ -9,7 +9,7 @@ function Sales({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getToday());
 
-  const categories = ['drinks', 'ladydrink', 'barfine'];
+  const categories = ['drinks', 'barfine'];
   const paymentMethods = ['cash', 'transfer'];
 
   // Initialize grid data
@@ -25,6 +25,7 @@ function Sales({ user }) {
   };
 
   const [gridData, setGridData] = useState(initializeGridData());
+  const [ladyDrinks, setLadyDrinks] = useState('');
 
   useEffect(() => {
     loadSales();
@@ -60,6 +61,8 @@ function Sales({ user }) {
     try {
       // Create sales for each non-zero amount
       const promises = [];
+
+      // Add monetary sales (drinks and barfine)
       categories.forEach(category => {
         paymentMethods.forEach(paymentMethod => {
           const value = parseFloat(gridData[category][paymentMethod]);
@@ -70,17 +73,32 @@ function Sales({ user }) {
                 amount: value,
                 paymentMethod: paymentMethod,
                 category: category,
-                notes: category === 'ladydrink' ? `${Math.round(value)} drinks` : ''
+                notes: ''
               })
             );
           }
         });
       });
 
+      // Add lady drinks as a separate entry (not tied to payment method)
+      const ladyDrinkCount = parseInt(ladyDrinks);
+      if (ladyDrinkCount && ladyDrinkCount > 0) {
+        promises.push(
+          salesService.create({
+            date: selectedDate,
+            amount: ladyDrinkCount,
+            paymentMethod: 'ladydrink',
+            category: 'ladydrink',
+            notes: `${ladyDrinkCount} drinks`
+          })
+        );
+      }
+
       await Promise.all(promises);
 
       // Reset form
       setGridData(initializeGridData());
+      setLadyDrinks('');
       setSelectedDate(getToday());
       setShowForm(false);
       loadSales();
@@ -100,31 +118,43 @@ function Sales({ user }) {
       if (!grouped[date]) {
         grouped[date] = {
           total: 0,
+          ladyDrinks: 0,
           categories: {},
           payments: {}
         };
       }
 
       const amount = parseFloat(sale.amount);
-      grouped[date].total += amount;
 
-      // Sum by category
-      if (!grouped[date].categories[sale.category]) {
-        grouped[date].categories[sale.category] = 0;
-      }
-      grouped[date].categories[sale.category] += amount;
+      // Handle lady drinks separately
+      if (sale.category === 'ladydrink') {
+        grouped[date].ladyDrinks += amount;
+      } else {
+        grouped[date].total += amount;
 
-      // Sum by payment method
-      if (!grouped[date].payments[sale.payment_method]) {
-        grouped[date].payments[sale.payment_method] = 0;
+        // Sum by category
+        if (!grouped[date].categories[sale.category]) {
+          grouped[date].categories[sale.category] = 0;
+        }
+        grouped[date].categories[sale.category] += amount;
+
+        // Sum by payment method
+        if (!grouped[date].payments[sale.payment_method]) {
+          grouped[date].payments[sale.payment_method] = 0;
+        }
+        grouped[date].payments[sale.payment_method] += amount;
       }
-      grouped[date].payments[sale.payment_method] += amount;
     });
 
     return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
   };
 
-  const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.amount), 0);
+  const totalSales = sales.reduce((sum, sale) => {
+    // Don't include lady drinks in monetary total
+    if (sale.category === 'ladydrink') return sum;
+    return sum + parseFloat(sale.amount);
+  }, 0);
+
   const dailySales = groupSalesByDate();
 
   return (
@@ -171,28 +201,47 @@ function Sales({ user }) {
                     return (
                       <tr key={category}>
                         <td style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-                          {category === 'ladydrink' ? 'LadyDrink' : category}
+                          {category}
                         </td>
                         {paymentMethods.map(pm => (
                           <td key={pm}>
                             <input
                               type="number"
-                              step={category === 'ladydrink' ? '1' : '0.01'}
+                              step="0.01"
                               value={gridData[category][pm]}
                               onChange={(e) => handleGridChange(category, pm, e.target.value)}
-                              placeholder={category === 'ladydrink' ? '0' : '0.00'}
+                              placeholder="0.00"
                               style={{ width: '100%', maxWidth: '120px' }}
                             />
                           </td>
                         ))}
                         <td style={{ fontWeight: 'bold' }}>
-                          {rowTotal > 0 ? (category === 'ladydrink' ? `${Math.round(rowTotal)} drinks` : formatCurrency(rowTotal)) : '-'}
+                          {rowTotal > 0 ? formatCurrency(rowTotal) : '-'}
                         </td>
                       </tr>
                     );
                   })}
+
+                  {/* Lady Drinks Row - No payment method split */}
+                  <tr style={{ backgroundColor: '#f0f8ff' }}>
+                    <td style={{ fontWeight: 'bold' }}>LadyDrink</td>
+                    <td colSpan="2">
+                      <input
+                        type="number"
+                        step="1"
+                        value={ladyDrinks}
+                        onChange={(e) => setLadyDrinks(e.target.value)}
+                        placeholder="0"
+                        style={{ width: '100%', maxWidth: '120px' }}
+                      />
+                    </td>
+                    <td style={{ fontWeight: 'bold' }}>
+                      {ladyDrinks && parseInt(ladyDrinks) > 0 ? `${parseInt(ladyDrinks)} drinks` : '-'}
+                    </td>
+                  </tr>
+
                   <tr style={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
-                    <td>Total</td>
+                    <td>Total (฿)</td>
                     {paymentMethods.map(pm => {
                       const colTotal = categories.reduce((sum, cat) => {
                         const val = parseFloat(gridData[cat][pm]) || 0;
@@ -251,11 +300,14 @@ function Sales({ user }) {
                     <ul style={{ listStyle: 'none', padding: '5px 0', margin: 0 }}>
                       {Object.entries(data.categories).map(([cat, amount]) => (
                         <li key={cat} style={{ padding: '3px 0' }}>
-                          <span style={{ textTransform: 'capitalize' }}>
-                            {cat === 'ladydrink' ? 'LadyDrink' : cat}:
-                          </span> {cat === 'ladydrink' ? `${Math.round(amount)} drinks` : formatCurrency(amount)}
+                          <span style={{ textTransform: 'capitalize' }}>{cat}:</span> {formatCurrency(amount)}
                         </li>
                       ))}
+                      {data.ladyDrinks > 0 && (
+                        <li style={{ padding: '3px 0', color: '#2196F3' }}>
+                          LadyDrink: {Math.round(data.ladyDrinks)} drinks
+                        </li>
+                      )}
                     </ul>
                   </div>
 

@@ -103,6 +103,7 @@ function Sales({ user }) {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
                 <option value="drinks">Drinks</option>
+                <option value="ladydrink">LadyDrink</option>
                 <option value="barfine">Barfine</option>
                 <option value="other">Other</option>
               </select>

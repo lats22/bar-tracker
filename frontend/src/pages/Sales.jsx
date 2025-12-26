@@ -9,7 +9,7 @@ function Sales({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getToday());
 
-  const categories = ['drinks', 'ladydrink', 'barfine', 'other'];
+  const categories = ['drinks', 'ladydrink', 'barfine'];
   const paymentMethods = ['cash', 'transfer'];
 
   // Initialize grid data

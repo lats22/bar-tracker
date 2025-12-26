@@ -62,15 +62,15 @@ function Sales({ user }) {
       const promises = [];
       categories.forEach(category => {
         paymentMethods.forEach(paymentMethod => {
-          const amount = parseFloat(gridData[category][paymentMethod]);
-          if (amount && amount > 0) {
+          const value = parseFloat(gridData[category][paymentMethod]);
+          if (value && value > 0) {
             promises.push(
               salesService.create({
                 date: selectedDate,
-                amount: amount,
+                amount: value,
                 paymentMethod: paymentMethod,
                 category: category,
-                notes: ''
+                notes: category === 'ladydrink' ? `${Math.round(value)} drinks` : ''
               })
             );
           }
@@ -177,16 +177,16 @@ function Sales({ user }) {
                           <td key={pm}>
                             <input
                               type="number"
-                              step="0.01"
+                              step={category === 'ladydrink' ? '1' : '0.01'}
                               value={gridData[category][pm]}
                               onChange={(e) => handleGridChange(category, pm, e.target.value)}
-                              placeholder="0.00"
+                              placeholder={category === 'ladydrink' ? '0' : '0.00'}
                               style={{ width: '100%', maxWidth: '120px' }}
                             />
                           </td>
                         ))}
                         <td style={{ fontWeight: 'bold' }}>
-                          {rowTotal > 0 ? formatCurrency(rowTotal) : '-'}
+                          {rowTotal > 0 ? (category === 'ladydrink' ? `${Math.round(rowTotal)} drinks` : formatCurrency(rowTotal)) : '-'}
                         </td>
                       </tr>
                     );
@@ -253,7 +253,7 @@ function Sales({ user }) {
                         <li key={cat} style={{ padding: '3px 0' }}>
                           <span style={{ textTransform: 'capitalize' }}>
                             {cat === 'ladydrink' ? 'LadyDrink' : cat}:
-                          </span> {formatCurrency(amount)}
+                          </span> {cat === 'ladydrink' ? `${Math.round(amount)} drinks` : formatCurrency(amount)}
                         </li>
                       ))}
                     </ul>

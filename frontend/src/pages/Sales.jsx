@@ -278,7 +278,7 @@ function Sales({ user }) {
 
       <div className="card">
         <div className="card-header">
-          <h3>Daily Sales Summary</h3>
+          <h3>Monthly Sales</h3>
           <div className="stat-value success">{formatCurrency(totalSales)}</div>
         </div>
         {loading ? (

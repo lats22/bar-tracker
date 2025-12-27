@@ -53,7 +53,8 @@ class LadyDrink {
   // Get lady drinks for a specific date
   static async getByDate(date) {
     const result = await pool.query(
-      `SELECT ld.*, l.name as lady_name
+      `SELECT ld.id, ld.date::text as date, ld.lady_id, ld.drink_count,
+              ld.created_by, ld.created_at, ld.updated_at, l.name as lady_name
        FROM lady_drinks ld
        JOIN ladies l ON ld.lady_id = l.id
        WHERE ld.date = $1
@@ -66,7 +67,8 @@ class LadyDrink {
   // Get lady drinks for a date range
   static async getByDateRange(startDate, endDate) {
     const result = await pool.query(
-      `SELECT ld.*, l.name as lady_name
+      `SELECT ld.id, ld.date::text as date, ld.lady_id, ld.drink_count,
+              ld.created_by, ld.created_at, ld.updated_at, l.name as lady_name
        FROM lady_drinks ld
        JOIN ladies l ON ld.lady_id = l.id
        WHERE ld.date >= $1 AND ld.date <= $2

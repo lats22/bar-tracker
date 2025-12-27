@@ -15,7 +15,8 @@ class Sale {
   // Get all sales with optional filters
   static async getAll(filters = {}) {
     let query = `
-      SELECT s.*, u.full_name as created_by_name
+      SELECT s.id, s.date::text as date, s.amount, s.payment_method, s.category,
+             s.notes, s.created_by, s.created_at, s.updated_at, u.full_name as created_by_name
       FROM sales s
       LEFT JOIN users u ON s.created_by = u.id
       WHERE 1=1
@@ -145,7 +146,7 @@ class Sale {
   static async getDailySales(startDate, endDate) {
     const result = await pool.query(
       `SELECT
-        date,
+        date::text as date,
         COUNT(*) as transactions,
         SUM(amount) as total
        FROM sales

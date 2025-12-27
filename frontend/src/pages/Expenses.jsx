@@ -104,7 +104,7 @@ function Expenses({ user }) {
                 <option value="rent">Rent</option>
                 <option value="general_fee">General Fee</option>
                 <option value="wifi">Wifi</option>
-                <option value="renovation">Renovation</option>
+                <option value="ice_supply">Ice supply</option>
                 <option value="snacks">Snacks</option>
               </select>
             </div>

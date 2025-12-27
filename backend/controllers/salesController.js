@@ -32,6 +32,7 @@ exports.createSale = async (req, res) => {
 exports.getSales = async (req, res) => {
   try {
     const { startDate, endDate, category, paymentMethod } = req.query;
+    console.log('GET /api/sales - Filters:', { startDate, endDate, category, paymentMethod });
 
     const sales = await Sale.getAll({
       startDate,
@@ -39,6 +40,16 @@ exports.getSales = async (req, res) => {
       category,
       paymentMethod
     });
+
+    console.log('GET /api/sales - Returning', sales.length, 'sales records');
+    if (sales.length > 0) {
+      console.log('Sample record:', sales[0]);
+    }
+
+    // Prevent browser caching to ensure fresh data
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     res.json({ sales, count: sales.length });
   } catch (error) {

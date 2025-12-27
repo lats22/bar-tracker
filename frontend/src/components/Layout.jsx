@@ -16,7 +16,7 @@ function Layout({ user, onLogout }) {
           <Link to="/sales" className={isActive('/sales')}>Sales</Link>
           <Link to="/expenses" className={isActive('/expenses')}>Expenses</Link>
           {(user.role === 'admin' || user.role === 'manager') && (
-            <Link to="/reports" className={isActive('/reports')}>Reports</Link>
+            <Link to="/salary" className={isActive('/salary')}>Salary</Link>
           )}
           {user.role === 'admin' && (
             <Link to="/users" className={isActive('/users')}>Users</Link>

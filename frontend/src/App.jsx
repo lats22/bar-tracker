@@ -5,7 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
-import Reports from './pages/Reports';
+import Salary from './pages/Salary';
 import Profile from './pages/Profile';
 import Users from './pages/Users';
 import Layout from './components/Layout';
@@ -55,7 +55,7 @@ function App() {
           <Route index element={<Dashboard user={user} />} />
           <Route path="sales" element={<Sales user={user} />} />
           <Route path="expenses" element={<Expenses user={user} />} />
-          <Route path="reports" element={<Reports user={user} />} />
+          <Route path="salary" element={<Salary user={user} />} />
           <Route path="profile" element={<Profile user={user} />} />
           {user && user.role === 'admin' && <Route path="users" element={<Users user={user} />} />}
         </Route>

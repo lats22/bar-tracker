@@ -4,13 +4,12 @@ const { logActivity } = require('../middleware/logger');
 // Create new expense
 exports.createExpense = async (req, res) => {
   try {
-    const { date, amount, category, vendor, description, receiptUrl } = req.body;
+    const { date, amount, category, description, receiptUrl } = req.body;
 
     const expense = await Expense.create({
       date,
       amount,
       category,
-      vendor,
       description,
       receiptUrl,
       createdBy: req.user.id
@@ -32,13 +31,12 @@ exports.createExpense = async (req, res) => {
 // Get all expenses with optional filters
 exports.getExpenses = async (req, res) => {
   try {
-    const { startDate, endDate, category, vendor } = req.query;
+    const { startDate, endDate, category } = req.query;
 
     const expenses = await Expense.getAll({
       startDate,
       endDate,
-      category,
-      vendor
+      category
     });
 
     res.json({ expenses, count: expenses.length });
@@ -70,6 +68,19 @@ exports.updateExpense = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // If amount is set to 0, delete the expense instead
+    if (updates.amount !== undefined && parseFloat(updates.amount) === 0) {
+      await Expense.delete(id);
+
+      // Log activity
+      await logActivity(req.user.id, 'delete_expense', 'expense', id, req);
+
+      return res.json({
+        message: 'Expense deleted (amount set to zero)',
+        deleted: true
+      });
+    }
 
     const expense = await Expense.update(id, updates);
 
@@ -119,13 +130,11 @@ exports.getSummary = async (req, res) => {
     const summary = await Expense.getSummary(startDate, endDate);
     const byCategory = await Expense.getByCategory(startDate, endDate);
     const dailyExpenses = await Expense.getDailyExpenses(startDate, endDate);
-    const topVendors = await Expense.getTopVendors(startDate, endDate);
 
     res.json({
       summary,
       byCategory,
-      dailyExpenses,
-      topVendors
+      dailyExpenses
     });
   } catch (error) {
     console.error('Get summary error:', error);

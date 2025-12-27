@@ -2,12 +2,12 @@ const pool = require('../config/database');
 
 class Expense {
   // Create new expense
-  static async create({ date, amount, category, vendor, description, receiptUrl, createdBy }) {
+  static async create({ date, amount, category, description, receiptUrl, createdBy }) {
     const result = await pool.query(
-      `INSERT INTO expenses (date, amount, category, vendor, description, receipt_url, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO expenses (date, amount, category, description, receipt_url, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [date, amount, category, vendor, description, receiptUrl, createdBy]
+      [date, amount, category, description, receiptUrl, createdBy]
     );
     return result.rows[0];
   }
@@ -41,12 +41,6 @@ class Expense {
       paramCount++;
     }
 
-    if (filters.vendor) {
-      query += ` AND e.vendor ILIKE $${paramCount}`;
-      params.push(`%${filters.vendor}%`);
-      paramCount++;
-    }
-
     query += ' ORDER BY e.date DESC, e.created_at DESC';
 
     const result = await pool.query(query, params);
@@ -67,7 +61,7 @@ class Expense {
 
   // Update expense
   static async update(id, updates) {
-    const allowedFields = ['date', 'amount', 'category', 'vendor', 'description', 'receipt_url'];
+    const allowedFields = ['amount', 'category', 'description', 'receipt_url'];
     const fields = Object.keys(updates).filter(key => allowedFields.includes(key));
 
     if (fields.length === 0) {
@@ -135,23 +129,6 @@ class Expense {
        GROUP BY date
        ORDER BY date`,
       [startDate, endDate]
-    );
-    return result.rows;
-  }
-
-  // Get top vendors by spending
-  static async getTopVendors(startDate, endDate, limit = 10) {
-    const result = await pool.query(
-      `SELECT
-        vendor,
-        COUNT(*) as transactions,
-        SUM(amount) as total_spent
-       FROM expenses
-       WHERE date >= $1 AND date <= $2 AND vendor IS NOT NULL
-       GROUP BY vendor
-       ORDER BY total_spent DESC
-       LIMIT $3`,
-      [startDate, endDate, limit]
     );
     return result.rows;
   }

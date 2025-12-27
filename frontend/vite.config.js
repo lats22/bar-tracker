@@ -12,6 +12,7 @@ export default defineConfig({
         name: 'Siara Bar',
         short_name: 'SiaraBar',
         description: 'Sales and Expense Tracker for Siara Bar',
+        version: '1.0.2',
         theme_color: '#1a1a1a',
         background_color: '#ffffff',
         display: 'standalone',

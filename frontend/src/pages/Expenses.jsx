@@ -81,7 +81,29 @@ function Expenses({ user }) {
     }
   };
 
+  // Group expenses by month
+  const groupExpensesByMonth = () => {
+    const groups = {};
+    expenses.forEach(expense => {
+      const date = new Date(expense.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!groups[monthKey]) {
+        groups[monthKey] = {
+          expenses: [],
+          total: 0,
+          displayName: date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+        };
+      }
+      groups[monthKey].expenses.push(expense);
+      groups[monthKey].total += parseFloat(expense.amount);
+    });
+
+    // Sort by month (newest first)
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  };
+
   const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+  const monthlyGroups = groupExpensesByMonth();
 
   return (
     <div className="page">
@@ -117,6 +139,7 @@ function Expenses({ user }) {
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
+                disabled={!!editingId}
               />
             </div>
             <div className="form-group">
@@ -147,6 +170,7 @@ function Expenses({ user }) {
                 <option value="wifi">Wifi</option>
                 <option value="ice_supply">Ice supply</option>
                 <option value="snacks">Snacks</option>
+                <option value="maintenance">Maintenance</option>
               </select>
             </div>
             <div className="form-group full-width">
@@ -170,33 +194,35 @@ function Expenses({ user }) {
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Recent Expenses</h3>
-          <div className="stat-value danger">{formatCurrency(totalExpenses)}</div>
-        </div>
-        {loading ? (
+      {loading ? (
+        <div className="card">
           <p>Loading...</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Category</th>
-                  <th>Description</th>
-                  <th>By</th>
-                  {canManage && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.length === 0 ? (
+        </div>
+      ) : expenses.length === 0 ? (
+        <div className="card">
+          <p style={{ textAlign: 'center', padding: '20px' }}>No expenses found</p>
+        </div>
+      ) : (
+        monthlyGroups.map(([monthKey, monthData]) => (
+          <div key={monthKey} className="card" style={{ marginTop: '20px' }}>
+            <div className="card-header">
+              <h3>{monthData.displayName}</h3>
+              <div className="stat-value danger">{formatCurrency(monthData.total)}</div>
+            </div>
+            <div className="table-responsive">
+              <table className="table">
+                <thead>
                   <tr>
-                    <td colSpan={canManage ? "6" : "5"} style={{ textAlign: 'center' }}>No expenses found</td>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>By</th>
+                    {canManage && <th>Actions</th>}
                   </tr>
-                ) : (
-                  expenses.map((expense) => (
+                </thead>
+                <tbody>
+                  {monthData.expenses.map((expense) => (
                     <tr key={expense.id}>
                       <td>{formatDisplayDate(expense.date)}</td>
                       <td className="danger">{formatCurrency(expense.amount)}</td>
@@ -220,13 +246,13 @@ function Expenses({ user }) {
                         </td>
                       )}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+        ))
+      )}
     </div>
   );
 }

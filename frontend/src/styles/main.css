@@ -38,6 +38,10 @@ body {
   align-items: center;
   gap: 2rem;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .nav-brand {
@@ -403,6 +407,9 @@ body {
   .navbar {
     padding: 1rem;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
   }
 
   .nav-brand {
@@ -527,6 +534,9 @@ body {
 
   .navbar {
     padding: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
   }
 
   .main-content {

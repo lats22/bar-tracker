@@ -59,13 +59,15 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Skip validation since we're behind nginx
 });
 
 // Apply rate limiting to auth routes
 app.use('/api/auth/login', rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5, // 5 login attempts per 15 minutes
-  message: 'Too many login attempts, please try again later.'
+  message: 'Too many login attempts, please try again later.',
+  validate: { trustProxy: false }, // Skip validation since we're behind nginx
 }));
 
 app.use('/api/', limiter);

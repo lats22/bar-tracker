@@ -40,8 +40,8 @@ function Dashboard() {
     setLoadingChart(true);
     try {
       const [year, month] = selectedMonth.split('-');
-      const startDate = format(startOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
+      const startDate = format(startOfMonth(new Date(parseInt(year), parseInt(month) - 1)), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(new Date(parseInt(year), parseInt(month) - 1)), 'yyyy-MM-dd');
 
       const salesData = await salesService.getAll({ start: startDate, end: endDate });
 
@@ -62,7 +62,7 @@ function Dashboard() {
       const chartData = Object.entries(dailyTotals)
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({
-          date: format(new Date(date), 'dd MMM'),
+          date: format(new Date(date + 'T00:00:00'), 'dd MMM'),
           fullDate: date,
           sales: total
         }));

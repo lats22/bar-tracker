@@ -10,7 +10,7 @@ function Expenses({ user }) {
   const [formData, setFormData] = useState({
     date: getToday(),
     amount: '',
-    category: 'supplies',
+    category: 'electricity',
     vendor: '',
     description: ''
   });
@@ -41,7 +41,7 @@ function Expenses({ user }) {
       setFormData({
         date: getToday(),
         amount: '',
-        category: 'supplies',
+        category: 'electricity',
         vendor: '',
         description: ''
       });
@@ -96,12 +96,16 @@ function Expenses({ user }) {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 required
               >
-                <option value="supplies">Supplies</option>
-                <option value="utilities">Utilities</option>
-                <option value="salaries">Salaries</option>
+                <option value="electricity">Electricity</option>
+                <option value="police">Police</option>
+                <option value="water">Water</option>
+                <option value="alcool">Alcool</option>
+                <option value="juice">Juice</option>
                 <option value="rent">Rent</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="other">Other</option>
+                <option value="general_fee">General Fee</option>
+                <option value="wifi">Wifi</option>
+                <option value="renovation">Renovation</option>
+                <option value="snacks">Snacks</option>
               </select>
             </div>
             <div className="form-group">

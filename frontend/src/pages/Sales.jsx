@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { salesService } from '../services/sales';
+import { ladiesService } from '../services/ladies';
 import { formatCurrency, formatNumber } from '../utils/format';
 import { formatDisplayDate, getToday, getThisMonth } from '../utils/date';
 
@@ -9,6 +10,13 @@ function Sales({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [editingDate, setEditingDate] = useState(null);
+
+  // Ladies tracking
+  const [ladies, setLadies] = useState([]);
+  const [ladyDrinkEntries, setLadyDrinkEntries] = useState([]);
+  const [newLadyName, setNewLadyName] = useState('');
+  const [showAddLady, setShowAddLady] = useState(false);
+  const [ladyDrinksData, setLadyDrinksData] = useState([]);
 
   const categories = ['drinks', 'barfine'];
   const paymentMethods = ['cash', 'transfer'];
@@ -26,10 +34,10 @@ function Sales({ user }) {
   };
 
   const [gridData, setGridData] = useState(initializeGridData());
-  const [ladyDrinks, setLadyDrinks] = useState('');
 
   useEffect(() => {
     loadSales();
+    loadLadies();
   }, []);
 
   const loadSales = async () => {
@@ -38,10 +46,28 @@ function Sales({ user }) {
       const period = getThisMonth();
       const data = await salesService.getAll(period);
       setSales(data.sales);
+
+      // Load lady drinks for the same period
+      try {
+        const ladyDrinksResult = await ladiesService.getLadyDrinksByDateRange(period.start, period.end);
+        setLadyDrinksData(ladyDrinksResult.ladyDrinks || []);
+      } catch (err) {
+        console.error('Failed to load lady drinks:', err);
+        setLadyDrinksData([]);
+      }
     } catch (err) {
       console.error('Failed to load sales:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLadies = async () => {
+    try {
+      const data = await ladiesService.getAll();
+      setLadies(data.ladies || []);
+    } catch (err) {
+      console.error('Failed to load ladies:', err);
     }
   };
 
@@ -55,23 +81,69 @@ function Sales({ user }) {
     }));
   };
 
-  const handleEditDate = (date) => {
+  const handleAddLadyDrinkEntry = () => {
+    setLadyDrinkEntries([...ladyDrinkEntries, { ladyId: '', drinkCount: 0 }]);
+  };
+
+  const handleRemoveLadyDrinkEntry = (index) => {
+    setLadyDrinkEntries(ladyDrinkEntries.filter((_, i) => i !== index));
+  };
+
+  const handleLadyDrinkChange = (index, field, value) => {
+    const newEntries = [...ladyDrinkEntries];
+    newEntries[index][field] = value;
+    setLadyDrinkEntries(newEntries);
+  };
+
+  const handleAddNewLady = async () => {
+    if (!newLadyName.trim()) {
+      alert('Please enter a lady name');
+      return;
+    }
+    try {
+      const result = await ladiesService.create({ name: newLadyName.trim() });
+      setLadies([...ladies, result.lady]);
+      setNewLadyName('');
+      setShowAddLady(false);
+      alert('Lady added successfully!');
+    } catch (err) {
+      alert('Failed to add lady: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleEditDate = async (date) => {
     // Load sales for this date into the form
     const dateSales = sales.filter(sale => sale.date === date);
 
     const newGridData = initializeGridData();
-    let ladyDrinkCount = 0;
 
     dateSales.forEach(sale => {
-      if (sale.category === 'ladydrink') {
-        ladyDrinkCount = sale.amount;
-      } else {
+      // Skip old ladydrink entries (legacy data)
+      if (sale.category !== 'ladydrink') {
         newGridData[sale.category][sale.payment_method] = sale.amount;
       }
     });
 
     setGridData(newGridData);
-    setLadyDrinks(ladyDrinkCount > 0 ? ladyDrinkCount.toString() : '');
+
+    // Load lady drinks for this date
+    try {
+      const ladyDrinksData = await ladiesService.getLadyDrinksByDate(date);
+      if (ladyDrinksData.ladyDrinks && ladyDrinksData.ladyDrinks.length > 0) {
+        setLadyDrinkEntries(
+          ladyDrinksData.ladyDrinks.map(ld => ({
+            ladyId: ld.lady_id,
+            drinkCount: ld.drink_count
+          }))
+        );
+      } else {
+        setLadyDrinkEntries([]);
+      }
+    } catch (err) {
+      console.error('Failed to load lady drinks:', err);
+      setLadyDrinkEntries([]);
+    }
+
     setSelectedDate(date);
     setEditingDate(date);
     setShowForm(true);
@@ -82,7 +154,7 @@ function Sales({ user }) {
 
   const handleCancelEdit = () => {
     setGridData(initializeGridData());
-    setLadyDrinks('');
+    setLadyDrinkEntries([]);
     setSelectedDate(getToday());
     setEditingDate(null);
     setShowForm(false);
@@ -121,25 +193,28 @@ function Sales({ user }) {
         });
       });
 
-      // Add lady drinks as a separate entry (not tied to payment method)
-      const ladyDrinkCount = parseInt(ladyDrinks);
-      if (ladyDrinkCount && ladyDrinkCount > 0) {
-        promises.push(
-          salesService.create({
-            date: selectedDate,
-            amount: ladyDrinkCount,
-            paymentMethod: 'ladydrink',
-            category: 'ladydrink',
-            notes: `${ladyDrinkCount} drinks`
-          })
-        );
-      }
-
       await Promise.all(promises);
+
+      // Save lady drinks if there are any entries
+      if (ladyDrinkEntries.length > 0) {
+        const validLadyDrinks = ladyDrinkEntries.filter(
+          entry => entry.ladyId && parseInt(entry.drinkCount) > 0
+        );
+
+        if (validLadyDrinks.length > 0) {
+          await ladiesService.saveLadyDrinks(
+            selectedDate,
+            validLadyDrinks.map(entry => ({
+              ladyId: entry.ladyId,
+              drinkCount: parseInt(entry.drinkCount)
+            }))
+          );
+        }
+      }
 
       // Reset form
       setGridData(initializeGridData());
-      setLadyDrinks('');
+      setLadyDrinkEntries([]);
       setSelectedDate(getToday());
       setEditingDate(null);
       setShowForm(false);
@@ -156,36 +231,34 @@ function Sales({ user }) {
   const groupSalesByDate = () => {
     const grouped = {};
     sales.forEach(sale => {
+      // Skip old ladydrink entries (legacy data - now using lady_drinks table)
+      if (sale.category === 'ladydrink') {
+        return;
+      }
+
       const date = sale.date;
       if (!grouped[date]) {
         grouped[date] = {
           total: 0,
-          ladyDrinks: 0,
           categories: {},
           payments: {}
         };
       }
 
       const amount = parseFloat(sale.amount);
+      grouped[date].total += amount;
 
-      // Handle lady drinks separately
-      if (sale.category === 'ladydrink') {
-        grouped[date].ladyDrinks += amount;
-      } else {
-        grouped[date].total += amount;
-
-        // Sum by category
-        if (!grouped[date].categories[sale.category]) {
-          grouped[date].categories[sale.category] = 0;
-        }
-        grouped[date].categories[sale.category] += amount;
-
-        // Sum by payment method
-        if (!grouped[date].payments[sale.payment_method]) {
-          grouped[date].payments[sale.payment_method] = 0;
-        }
-        grouped[date].payments[sale.payment_method] += amount;
+      // Sum by category
+      if (!grouped[date].categories[sale.category]) {
+        grouped[date].categories[sale.category] = 0;
       }
+      grouped[date].categories[sale.category] += amount;
+
+      // Sum by payment method
+      if (!grouped[date].payments[sale.payment_method]) {
+        grouped[date].payments[sale.payment_method] = 0;
+      }
+      grouped[date].payments[sale.payment_method] += amount;
     });
 
     return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
@@ -267,24 +340,6 @@ function Sales({ user }) {
                     );
                   })}
 
-                  {/* Lady Drinks Row - No payment method split */}
-                  <tr style={{ backgroundColor: '#f0f8ff' }}>
-                    <td style={{ fontWeight: 'bold' }}>LadyDrink</td>
-                    <td colSpan="2">
-                      <input
-                        type="number"
-                        step="1"
-                        value={ladyDrinks}
-                        onChange={(e) => setLadyDrinks(e.target.value)}
-                        placeholder="0"
-                        style={{ width: '100%', maxWidth: '120px' }}
-                      />
-                    </td>
-                    <td style={{ fontWeight: 'bold' }}>
-                      {ladyDrinks && parseInt(ladyDrinks) > 0 ? `${parseInt(ladyDrinks)} drinks` : '-'}
-                    </td>
-                  </tr>
-
                   <tr style={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <td>Total (฿)</td>
                     {paymentMethods.map(pm => {
@@ -310,6 +365,110 @@ function Sales({ user }) {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* Lady Drinks Detail Section */}
+            <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h4 style={{ margin: 0 }}>Lady Drinks Detail</h4>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleAddLadyDrinkEntry}
+                    className="btn"
+                    style={{ padding: '5px 15px', fontSize: '14px', backgroundColor: '#28a745', color: 'white' }}
+                  >
+                    + Add Lady Drink
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLady(!showAddLady)}
+                    className="btn"
+                    style={{ padding: '5px 15px', fontSize: '14px', backgroundColor: '#007bff', color: 'white' }}
+                  >
+                    {showAddLady ? 'Cancel' : '+ New Lady'}
+                  </button>
+                </div>
+              </div>
+
+              {showAddLady && (
+                <div style={{ padding: '15px', backgroundColor: 'white', borderRadius: '5px', marginBottom: '15px' }}>
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Add New Lady</label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      value={newLadyName}
+                      onChange={(e) => setNewLadyName(e.target.value)}
+                      placeholder="Enter lady name"
+                      style={{ flex: 1, padding: '8px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddNewLady}
+                      className="btn btn-primary"
+                      style={{ padding: '8px 20px' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {ladyDrinkEntries.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#666', margin: '20px 0' }}>
+                  No lady drinks added. Click "+ Add Lady Drink" to start.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {ladyDrinkEntries.map((entry, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'center', backgroundColor: 'white', padding: '10px', borderRadius: '5px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '12px', color: '#666' }}>Lady</label>
+                        <select
+                          value={entry.ladyId}
+                          onChange={(e) => handleLadyDrinkChange(index, 'ladyId', e.target.value)}
+                          style={{ width: '100%', padding: '8px' }}
+                          required={entry.drinkCount > 0}
+                        >
+                          <option value="">Select a lady...</option>
+                          {ladies.map(lady => (
+                            <option key={lady.id} value={lady.id}>{lady.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ width: '150px' }}>
+                        <label style={{ fontSize: '12px', color: '#666' }}>Drinks</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={entry.drinkCount}
+                          onChange={(e) => handleLadyDrinkChange(index, 'drinkCount', e.target.value)}
+                          style={{ width: '100%', padding: '8px' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLadyDrinkEntry(index)}
+                        style={{
+                          padding: '8px 15px',
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          marginTop: '18px'
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <div style={{ padding: '10px', backgroundColor: 'white', borderRadius: '5px', fontWeight: 'bold' }}>
+                    Total Lady Drinks: {ladyDrinkEntries.reduce((sum, entry) => sum + (parseInt(entry.drinkCount) || 0), 0)} drinks
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
@@ -341,6 +500,25 @@ function Sales({ user }) {
                   <h4 style={{ margin: 0 }}>{formatDisplayDate(date)}</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <div className="stat-value success">{formatCurrency(data.total)}</div>
+                    {(() => {
+                      const dateLadyDrinks = ladyDrinksData.filter(ld => ld.date === date);
+                      if (dateLadyDrinks.length > 0) {
+                        const totalDrinks = dateLadyDrinks.reduce((sum, ld) => sum + ld.drink_count, 0);
+                        return (
+                          <div style={{
+                            backgroundColor: '#FF1493',
+                            color: 'white',
+                            padding: '8px 15px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '16px'
+                          }}>
+                            🍹 {totalDrinks} {totalDrinks !== 1 ? 'drinks' : 'drink'}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     <button
                       onClick={() => handleEditDate(date)}
                       className="btn"
@@ -365,11 +543,6 @@ function Sales({ user }) {
                           <span style={{ textTransform: 'capitalize' }}>{cat}:</span> {formatCurrency(amount)}
                         </li>
                       ))}
-                      {data.ladyDrinks > 0 && (
-                        <li style={{ padding: '3px 0', color: '#2196F3' }}>
-                          LadyDrink: {Math.round(data.ladyDrinks)} drinks
-                        </li>
-                      )}
                     </ul>
                   </div>
 
@@ -383,6 +556,48 @@ function Sales({ user }) {
                       ))}
                     </ul>
                   </div>
+
+                  {(() => {
+                    const dateLadyDrinks = ladyDrinksData.filter(ld => ld.date === date);
+                    if (dateLadyDrinks.length > 0) {
+                      const totalDrinks = dateLadyDrinks.reduce((sum, ld) => sum + ld.drink_count, 0);
+                      return (
+                        <div style={{
+                          backgroundColor: '#FFF0F5',
+                          padding: '10px',
+                          borderRadius: '5px',
+                          border: '2px solid #FF1493'
+                        }}>
+                          <strong style={{ color: '#FF1493', fontSize: '14px' }}>🍹 Lady Drinks:</strong>
+                          <ul style={{ listStyle: 'none', padding: '5px 0 0 0', margin: 0 }}>
+                            {dateLadyDrinks.map((ld, idx) => (
+                              <li key={idx} style={{
+                                padding: '5px 0',
+                                fontSize: '14px',
+                                fontWeight: '500'
+                              }}>
+                                <span style={{ color: '#FF1493' }}>• {ld.lady_name}:</span>
+                                <span style={{ fontWeight: 'bold', marginLeft: '5px' }}>
+                                  {ld.drink_count} {ld.drink_count !== 1 ? 'drinks' : 'drink'}
+                                </span>
+                              </li>
+                            ))}
+                            <li style={{
+                              padding: '8px 0 3px 0',
+                              fontWeight: 'bold',
+                              color: '#2196F3',
+                              borderTop: '2px solid #FF1493',
+                              marginTop: '5px',
+                              fontSize: '15px'
+                            }}>
+                              TOTAL: {totalDrinks} {totalDrinks !== 1 ? 'drinks' : 'drink'}
+                            </li>
+                          </ul>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             ))}

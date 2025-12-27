@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const salesRoutes = require('./routes/sales');
 const expensesRoutes = require('./routes/expenses');
 const reportsRoutes = require('./routes/reports');
+const ladiesRoutes = require('./routes/ladies');
 
 // Import database config to test connection
 const pool = require('./config/database');
@@ -78,6 +79,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/ladies', ladiesRoutes);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

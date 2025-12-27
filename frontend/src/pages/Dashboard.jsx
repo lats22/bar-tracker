@@ -358,19 +358,19 @@ function Dashboard() {
             }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4CAF50' }}>
-                  {formatCurrency(dailySalesData.reduce((sum, day) => sum + day.sales, 0))}
+                  {formatCurrency(dailySalesData.length > 0 ? dailySalesData[dailySalesData.length - 1].sales : 0)}
                 </div>
                 <div style={{ fontSize: '14px', color: '#666' }}>Total Sales</div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2196F3' }}>
-                  {formatCurrency(dailySalesData.length > 0 ? dailySalesData.reduce((sum, day) => sum + day.sales, 0) / dailySalesData.length : 0)}
+                  {formatCurrency(dailySalesData.reduce((sum, day) => sum + day.dailySales, 0) / dailySalesData.length)}
                 </div>
                 <div style={{ fontSize: '14px', color: '#666' }}>Daily Average</div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF9800' }}>
-                  {dailySalesData.length}
+                  {dailySalesData.filter(day => day.dailySales > 0).length}
                 </div>
                 <div style={{ fontSize: '14px', color: '#666' }}>Days with Sales</div>
               </div>

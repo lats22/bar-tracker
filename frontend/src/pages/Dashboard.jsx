@@ -162,7 +162,7 @@ function Dashboard() {
         ) : (
           <div style={{ padding: '20px' }}>
             <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={dailySalesData}>
+              <LineChart data={dailySalesData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
@@ -183,13 +183,16 @@ function Dashboard() {
                   }}
                 />
                 <Legend />
-                <Bar
+                <Line
+                  type="monotone"
                   dataKey="sales"
-                  fill="#4CAF50"
+                  stroke="#4CAF50"
+                  strokeWidth={3}
                   name="Daily Sales (฿)"
-                  radius={[8, 8, 0, 0]}
+                  dot={{ fill: '#4CAF50', r: 5 }}
+                  activeDot={{ r: 8 }}
                 />
-              </BarChart>
+              </LineChart>
             </ResponsiveContainer>
 
             {/* Summary stats for selected month */}

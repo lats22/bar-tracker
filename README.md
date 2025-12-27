@@ -1,4 +1,4 @@
-# Bar Tracker - Sales & Expense Management System
+# Siara Bar - Sales & Expense Management System
 
 A modern, secure Progressive Web App (PWA) for tracking daily, weekly, monthly, and annual sales and expenses for your bar.
 
@@ -51,7 +51,7 @@ A modern, secure Progressive Web App (PWA) for tracking daily, weekly, monthly, 
 ## Project Structure
 
 ```
-bar-tracker/
+siara-bar/
 ├── backend/
 │   ├── config/          # Database & JWT configuration
 │   ├── controllers/     # Route controllers
@@ -114,10 +114,10 @@ Visit `http://localhost:5173` to see the app.
 
 ```bash
 # Create database
-createdb bar_tracker
+createdb siara_bar
 
 # Run schema
-psql -d bar_tracker -f database/schema.sql
+psql -d siara_bar -f database/schema.sql
 
 # Create admin user (see DEPLOYMENT.md for details)
 ```
@@ -183,7 +183,7 @@ FRONTEND_URL=http://your-domain.com
 # Database
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=bar_tracker
+DB_NAME=siara_bar
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 

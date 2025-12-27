@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Follow these steps to get Bar Tracker running quickly.
+Follow these steps to get Siara Bar running quickly.
 
 ## Prerequisites
 
@@ -14,13 +14,13 @@ Follow these steps to get Bar Tracker running quickly.
 
 ```bash
 # Create database
-createdb bar_tracker
+createdb siara_bar
 
 # Navigate to project
-cd PWA/bar-tracker
+cd siara-bar
 
 # Create database tables
-psql -d bar_tracker -f database/schema.sql
+psql -d siara_bar -f database/schema.sql
 ```
 
 ### 2. Backend Setup
@@ -74,7 +74,7 @@ For deploying to your Hostinger VPS, see the complete [DEPLOYMENT.md](docs/DEPLO
 ### Transfer to VPS
 
 ```bash
-# From your local machine, in the bar-tracker directory
+# From your local machine, in the siara-bar directory
 scp -r * your-username@your-vps-ip:/path/to/destination/
 ```
 

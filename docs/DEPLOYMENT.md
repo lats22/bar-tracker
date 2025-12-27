@@ -1,6 +1,6 @@
-# Bar Tracker - VPS Deployment Guide
+# Siara Bar - VPS Deployment Guide
 
-This guide will help you deploy the Bar Tracker application to your Hostinger VPS running Ubuntu 24.04.
+This guide will help you deploy the Siara Bar application to your Hostinger VPS running Ubuntu 24.04.
 
 ## Prerequisites
 
@@ -62,9 +62,9 @@ sudo apt install -y git
 sudo -u postgres psql
 
 # In PostgreSQL console, run these commands:
-CREATE DATABASE bar_tracker;
+CREATE DATABASE siara_bar;
 CREATE USER baruser WITH ENCRYPTED PASSWORD 'your-secure-password';
-GRANT ALL PRIVILEGES ON DATABASE bar_tracker TO baruser;
+GRANT ALL PRIVILEGES ON DATABASE siara_bar TO baruser;
 \q
 ```
 
@@ -73,8 +73,8 @@ GRANT ALL PRIVILEGES ON DATABASE bar_tracker TO baruser;
 ### Option A: Transfer from Local Machine
 
 ```bash
-# On your local machine (from the bar-tracker directory):
-scp -r * your-username@your-vps-ip:/home/your-username/bar-tracker/
+# On your local machine (from the siara-bar directory):
+scp -r * your-username@your-vps-ip:/home/your-username/siara-bar/
 ```
 
 ### Option B: Use Git (if you have a repository)
@@ -82,16 +82,16 @@ scp -r * your-username@your-vps-ip:/home/your-username/bar-tracker/
 ```bash
 # On VPS:
 cd /var/www
-sudo mkdir bar-tracker
-sudo chown your-username:your-username bar-tracker
-cd bar-tracker
+sudo mkdir siara-bar
+sudo chown your-username:your-username siara-bar
+cd siara-bar
 git clone your-repo-url .
 ```
 
 ## Step 6: Set Up Backend
 
 ```bash
-cd /path/to/bar-tracker/backend
+cd /path/to/siara-bar/backend
 
 # Install dependencies
 npm install
@@ -110,7 +110,7 @@ FRONTEND_URL=http://your-vps-ip
 
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=bar_tracker
+DB_NAME=siara_bar
 DB_USER=baruser
 DB_PASSWORD=your-secure-password
 
@@ -127,14 +127,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```bash
 # Run the schema
-PGPASSWORD=your-secure-password psql -U baruser -d bar_tracker -h localhost -f ../database/schema.sql
+PGPASSWORD=your-secure-password psql -U baruser -d siara_bar -h localhost -f ../database/schema.sql
 ```
 
 ### Create Admin User
 
 ```bash
 # Connect to database
-PGPASSWORD=your-secure-password psql -U baruser -d bar_tracker -h localhost
+PGPASSWORD=your-secure-password psql -U baruser -d siara_bar -h localhost
 
 # Generate password hash (use Node.js)
 node -e "const bcrypt = require('bcryptjs'); bcrypt.hash('YourAdminPassword123!', 10, (err, hash) => console.log(hash));"
@@ -156,7 +156,7 @@ npm start
 ## Step 7: Set Up Frontend
 
 ```bash
-cd /path/to/bar-tracker/frontend
+cd /path/to/siara-bar/frontend
 
 # Install dependencies
 npm install
@@ -176,8 +176,8 @@ npm run build
 sudo npm install -g pm2
 
 # Start backend with PM2
-cd /path/to/bar-tracker/backend
-pm2 start server.js --name bar-tracker-api
+cd /path/to/siara-bar/backend
+pm2 start server.js --name siara-bar-api
 
 # Save PM2 configuration
 pm2 save
@@ -190,7 +190,7 @@ pm2 startup
 ## Step 9: Configure Nginx
 
 ```bash
-sudo nano /etc/nginx/sites-available/bar-tracker
+sudo nano /etc/nginx/sites-available/siara-bar
 ```
 
 Add this configuration:
@@ -202,7 +202,7 @@ server {
 
     # Frontend
     location / {
-        root /path/to/bar-tracker/frontend/dist;
+        root /path/to/siara-bar/frontend/dist;
         index index.html;
         try_files $uri $uri/ /index.html;
     }
@@ -224,7 +224,7 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/bar-tracker /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/siara-bar /etc/nginx/sites-enabled/
 sudo nginx -t  # Test configuration
 sudo systemctl reload nginx
 ```
@@ -268,13 +268,13 @@ Open your browser and go to:
 
 ```bash
 # View backend logs
-pm2 logs bar-tracker-api
+pm2 logs siara-bar-api
 
 # Restart backend
-pm2 restart bar-tracker-api
+pm2 restart siara-bar-api
 
 # Stop backend
-pm2 stop bar-tracker-api
+pm2 stop siara-bar-api
 
 # Restart Nginx
 sudo systemctl restart nginx
@@ -284,10 +284,10 @@ sudo tail -f /var/log/nginx/error.log
 sudo tail -f /var/log/nginx/access.log
 
 # Database backup
-pg_dump -U baruser -h localhost bar_tracker > backup_$(date +%Y%m%d).sql
+pg_dump -U baruser -h localhost siara_bar > backup_$(date +%Y%m%d).sql
 
 # Database restore
-psql -U baruser -h localhost bar_tracker < backup_file.sql
+psql -U baruser -h localhost siara_bar < backup_file.sql
 ```
 
 ## Security Best Practices
@@ -308,12 +308,12 @@ psql -U baruser -h localhost bar_tracker < backup_file.sql
 ## Troubleshooting
 
 ### Backend won't start
-- Check logs: `pm2 logs bar-tracker-api`
-- Check database connection: Test with `psql -U baruser -d bar_tracker -h localhost`
+- Check logs: `pm2 logs siara-bar-api`
+- Check database connection: Test with `psql -U baruser -d siara_bar -h localhost`
 - Verify .env file settings
 
 ### Frontend shows blank page
-- Check if build succeeded: `ls /path/to/bar-tracker/frontend/dist`
+- Check if build succeeded: `ls /path/to/siara-bar/frontend/dist`
 - Check Nginx error logs: `sudo tail -f /var/log/nginx/error.log`
 - Verify Nginx configuration: `sudo nginx -t`
 

@@ -1,7 +1,7 @@
 {
-  "name": "bar-tracker-frontend",
+  "name": "siara-bar-frontend",
   "version": "1.0.0",
-  "description": "Frontend PWA for Bar Sales & Expense Tracker",
+  "description": "Frontend PWA for Siara Bar Management System",
   "type": "module",
   "scripts": {
     "dev": "vite",

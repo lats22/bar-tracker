@@ -1,7 +1,7 @@
 {
-  "name": "bar-tracker-backend",
+  "name": "siara-bar-backend",
   "version": "1.0.0",
-  "description": "Backend API for Bar Sales & Expense Tracker",
+  "description": "Backend API for Siara Bar Management System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

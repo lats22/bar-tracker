@@ -11,7 +11,6 @@ function Expenses({ user }) {
     date: getToday(),
     amount: '',
     category: 'electricity',
-    vendor: '',
     description: ''
   });
 
@@ -42,7 +41,6 @@ function Expenses({ user }) {
         date: getToday(),
         amount: '',
         category: 'electricity',
-        vendor: '',
         description: ''
       });
       setShowForm(false);
@@ -108,15 +106,6 @@ function Expenses({ user }) {
                 <option value="snacks">Snacks</option>
               </select>
             </div>
-            <div className="form-group">
-              <label>Vendor</label>
-              <input
-                type="text"
-                value={formData.vendor}
-                onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
-                placeholder="Vendor name"
-              />
-            </div>
             <div className="form-group full-width">
               <label>Description</label>
               <input
@@ -146,7 +135,6 @@ function Expenses({ user }) {
                   <th>Date</th>
                   <th>Amount</th>
                   <th>Category</th>
-                  <th>Vendor</th>
                   <th>Description</th>
                   <th>By</th>
                 </tr>
@@ -154,7 +142,7 @@ function Expenses({ user }) {
               <tbody>
                 {expenses.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center' }}>No expenses found</td>
+                    <td colSpan="5" style={{ textAlign: 'center' }}>No expenses found</td>
                   </tr>
                 ) : (
                   expenses.map((expense) => (
@@ -162,7 +150,6 @@ function Expenses({ user }) {
                       <td>{formatDisplayDate(expense.date)}</td>
                       <td className="danger">{formatCurrency(expense.amount)}</td>
                       <td>{expense.category}</td>
-                      <td>{expense.vendor}</td>
                       <td>{expense.description}</td>
                       <td>{expense.created_by_name}</td>
                     </tr>

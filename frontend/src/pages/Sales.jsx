@@ -53,13 +53,12 @@ function Sales({ user }) {
       const startDate = format(startOfMonth(monthDate), 'yyyy-MM-dd');
       const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
 
-      const period = { start: startDate, end: endDate };
-      const data = await salesService.getAll(period);
+      const data = await salesService.getAll({ startDate, endDate });
       setSales(data.sales);
 
       // Load lady drinks for the same period
       try {
-        const ladyDrinksResult = await ladiesService.getLadyDrinksByDateRange(period.start, period.end);
+        const ladyDrinksResult = await ladiesService.getLadyDrinksByDateRange(startDate, endDate);
         setLadyDrinksData(ladyDrinksResult.ladyDrinks || []);
       } catch (err) {
         console.error('Failed to load lady drinks:', err);

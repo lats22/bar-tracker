@@ -13,6 +13,7 @@ function Dashboard() {
 
   // Month selector for daily sales chart
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [monthsToShow, setMonthsToShow] = useState(1);
   const [dailySalesData, setDailySalesData] = useState([]);
   const [loadingChart, setLoadingChart] = useState(false);
 
@@ -22,7 +23,7 @@ function Dashboard() {
 
   useEffect(() => {
     loadDailySales();
-  }, [selectedMonth]);
+  }, [selectedMonth, monthsToShow]);
 
   const loadDashboard = async () => {
     try {
@@ -40,8 +41,13 @@ function Dashboard() {
     setLoadingChart(true);
     try {
       const [year, month] = selectedMonth.split('-');
-      const startDate = format(startOfMonth(new Date(parseInt(year), parseInt(month) - 1)), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date(parseInt(year), parseInt(month) - 1)), 'yyyy-MM-dd');
+      const endOfRange = endOfMonth(new Date(parseInt(year), parseInt(month) - 1));
+
+      // Calculate start date based on monthsToShow
+      const startOfRange = new Date(endOfRange);
+      startOfRange.setMonth(startOfRange.getMonth() - (monthsToShow - 1));
+      const startDate = format(startOfMonth(startOfRange), 'yyyy-MM-dd');
+      const endDate = format(endOfRange, 'yyyy-MM-dd');
 
       const salesData = await salesService.getAll({ start: startDate, end: endDate });
 
@@ -62,7 +68,7 @@ function Dashboard() {
       const chartData = Object.entries(dailyTotals)
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({
-          date: format(new Date(date + 'T00:00:00'), 'dd MMM'),
+          date: monthsToShow > 1 ? format(new Date(date + 'T00:00:00'), 'dd MMM') : format(new Date(date + 'T00:00:00'), 'dd MMM'),
           fullDate: date,
           sales: total
         }));
@@ -131,34 +137,56 @@ function Dashboard() {
 
       {/* Daily Sales Chart */}
       <div className="card" style={{ marginTop: '30px' }}>
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <h3>Daily Sales</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label htmlFor="month-selector" style={{ fontWeight: 'normal', margin: 0 }}>Month:</label>
-            <select
-              id="month-selector"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #ddd',
-                fontSize: '14px'
-              }}
-            >
-              {getMonthOptions().map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label htmlFor="duration-selector" style={{ fontWeight: 'normal', margin: 0 }}>Show:</label>
+              <select
+                id="duration-selector"
+                value={monthsToShow}
+                onChange={(e) => setMonthsToShow(parseInt(e.target.value))}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              >
+                <option value={1}>1 Month</option>
+                <option value={2}>2 Months</option>
+                <option value={3}>3 Months</option>
+                <option value={6}>6 Months</option>
+                <option value={12}>12 Months</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label htmlFor="month-selector" style={{ fontWeight: 'normal', margin: 0 }}>Ending:</label>
+              <select
+                id="month-selector"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              >
+                {getMonthOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {loadingChart ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading chart...</div>
         ) : dailySalesData.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>No sales data for this month</div>
+          <div style={{ padding: '40px', textAlign: 'center' }}>No sales data for this period</div>
         ) : (
           <div style={{ padding: '20px' }}>
             <ResponsiveContainer width="100%" height={400}>

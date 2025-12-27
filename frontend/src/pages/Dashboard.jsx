@@ -300,7 +300,8 @@ function Dashboard() {
                   angle={-45}
                   textAnchor="end"
                   height={80}
-                  tick={{ fontSize: 12 }}
+                  interval={0}
+                  tick={{ fontSize: 10 }}
                 />
                 <YAxis
                   tick={{ fontSize: 12 }}

@@ -79,15 +79,30 @@ function Dashboard() {
         dailyTotals[date] += parseFloat(sale.amount);
       });
 
-      // Convert to array format for chart with cumulative totals
-      const sortedEntries = Object.entries(dailyTotals).sort((a, b) => a[0].localeCompare(b[0]));
+      // Generate ALL days of the month
+      const monthStartDate = startOfMonth(selectedDate);
+      const monthEndDate = endOfMonth(selectedDate);
+      const allDays = [];
+
+      // Get number of days in the month
+      const daysInMonth = monthEndDate.getDate();
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(parseInt(year), parseInt(month) - 1, day);
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        allDays.push({
+          date: format(currentDate, 'dd MMM'),
+          fullDate: dateStr,
+          dailySales: dailyTotals[dateStr] || 0
+        });
+      }
+
+      // Add cumulative totals
       let cumulativeTotal = 0;
-      const chartData = sortedEntries.map(([date, total]) => {
-        cumulativeTotal += total;
+      const chartData = allDays.map(day => {
+        cumulativeTotal += day.dailySales;
         return {
-          date: format(new Date(date + 'T00:00:00'), 'dd MMM'),
-          fullDate: date,
-          dailySales: total,
+          ...day,
           sales: cumulativeTotal
         };
       });
@@ -129,14 +144,23 @@ function Dashboard() {
         dailyTotals[date] += parseInt(drink.drink_count);
       });
 
-      // Convert to array format for chart
-      const chartData = Object.entries(dailyTotals)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, total]) => ({
-          date: format(new Date(date + 'T00:00:00'), 'dd MMM'),
-          fullDate: date,
-          drinks: total
-        }));
+      // Generate ALL days of the month
+      const monthStartDate = startOfMonth(selectedDate);
+      const monthEndDate = endOfMonth(selectedDate);
+      const chartData = [];
+
+      // Get number of days in the month
+      const daysInMonth = monthEndDate.getDate();
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(parseInt(year), parseInt(month) - 1, day);
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        chartData.push({
+          date: format(currentDate, 'dd MMM'),
+          fullDate: dateStr,
+          drinks: dailyTotals[dateStr] || 0
+        });
+      }
 
       console.log('Lady drinks chart data:', chartData);
       setLadyDrinksData(chartData);
@@ -206,43 +230,34 @@ function Dashboard() {
 
   if (loading) return <div className="loading">Loading dashboard...</div>;
   if (error) return <div className="alert alert-error">{error}</div>;
-  if (!data) return null;
+  if (!data || !data.months) return null;
 
   return (
     <div className="dashboard">
       <h1>Dashboard</h1>
       <p className="text-muted">Today: {formatDisplayDate(getToday())}</p>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <h3>Today</h3>
-          <div className="stat-value success">{formatCurrency(data.today.sales)}</div>
-          <div className="stat-label">Sales</div>
-          <div className="stat-value danger">{formatCurrency(data.today.expenses)}</div>
-          <div className="stat-label">Expenses</div>
-          <div className="stat-value">{formatCurrency(data.today.profit)}</div>
-          <div className="stat-label">Profit</div>
-        </div>
-
-        <div className="stat-card">
-          <h3>This Week</h3>
-          <div className="stat-value success">{formatCurrency(data.thisWeek.sales)}</div>
-          <div className="stat-label">Sales</div>
-          <div className="stat-value danger">{formatCurrency(data.thisWeek.expenses)}</div>
-          <div className="stat-label">Expenses</div>
-          <div className="stat-value">{formatCurrency(data.thisWeek.profit)}</div>
-          <div className="stat-label">Profit</div>
-        </div>
-
-        <div className="stat-card">
-          <h3>This Month</h3>
-          <div className="stat-value success">{formatCurrency(data.thisMonth.sales)}</div>
-          <div className="stat-label">Sales</div>
-          <div className="stat-value danger">{formatCurrency(data.thisMonth.expenses)}</div>
-          <div className="stat-label">Expenses</div>
-          <div className="stat-value">{formatCurrency(data.thisMonth.profit)}</div>
-          <div className="stat-label">Profit</div>
-        </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '20px',
+        marginBottom: '30px',
+        maxWidth: '1200px',
+        margin: '0 auto 30px auto'
+      }}>
+        {data.months.map((month, index) => (
+          <div key={index} className="stat-card">
+            <h3>{month.name}</h3>
+            <div className="stat-value success">{formatCurrency(month.sales || 0)}</div>
+            <div className="stat-label">Sales</div>
+            <div className="stat-value danger">{formatCurrency(month.expenses || 0)}</div>
+            <div className="stat-label">Expenses</div>
+            <div className="stat-value" style={{ color: '#FF9800' }}>{formatCurrency(month.salaries || 0)}</div>
+            <div className="stat-label">Salaries</div>
+            <div className="stat-value">{formatCurrency(month.profit || 0)}</div>
+            <div className="stat-label">Profit</div>
+          </div>
+        ))}
       </div>
 
       {/* Cumulative Sales Chart */}

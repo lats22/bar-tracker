@@ -1,4 +1,5 @@
 const Sale = require('../models/Sale');
+const pool = require('../config/database');
 const { logActivity } = require('../middleware/logger');
 
 // Create new sale
@@ -105,12 +106,29 @@ exports.deleteSale = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // First, get the sale to find its date
+    const sale = await Sale.getById(id);
+
+    if (!sale) {
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+
+    // Delete the sale
     await Sale.delete(id);
+
+    // Also delete all lady_drinks from the same date
+    await pool.query(
+      'DELETE FROM lady_drinks WHERE date = $1',
+      [sale.date]
+    );
 
     // Log activity
     await logActivity(req.user.id, 'delete_sale', 'sale', id, req);
 
-    res.json({ message: 'Sale deleted successfully' });
+    res.json({
+      message: 'Sale and associated lady drinks deleted successfully',
+      date: sale.date
+    });
   } catch (error) {
     console.error('Delete sale error:', error);
     res.status(500).json({ error: 'Failed to delete sale' });

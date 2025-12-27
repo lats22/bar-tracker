@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { employeesService } from '../services/employees';
+import { salariesService } from '../services/salaries';
 import { formatCurrency } from '../utils/format';
 import { formatDisplayDate, getToday, getThisMonth } from '../utils/date';
 
@@ -9,8 +10,11 @@ function Salary({ user }) {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [showNewEmployeeForm, setShowNewEmployeeForm] = useState(false);
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  const [editingEmployeeId, setEditingEmployeeId] = useState(null);
   const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [newEmployeePosition, setNewEmployeePosition] = useState('bartender');
   const [formData, setFormData] = useState({
     date: getToday(),
     amount: '',
@@ -23,7 +27,7 @@ function Salary({ user }) {
 
   useEffect(() => {
     loadEmployees();
-    // loadSalaries();
+    loadSalaries();
   }, []);
 
   const loadEmployees = async () => {
@@ -38,43 +42,75 @@ function Salary({ user }) {
   const loadSalaries = async () => {
     setLoading(true);
     try {
-      // TODO: Implement salary service
-      // const period = getThisMonth();
-      // const data = await salaryService.getAll(period);
-      // setSalaries(data.salaries);
-      setSalaries([]);
+      const data = await salariesService.getAll();
+      setSalaries(data.salaries || []);
     } catch (err) {
       console.error('Failed to load salaries:', err);
+      setSalaries([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddNewEmployee = async () => {
+  const handleAddEmployeeFromModal = async () => {
     if (!newEmployeeName.trim()) {
       alert('Please enter an employee name');
       return;
     }
 
     try {
-      const response = await employeesService.create({
+      await employeesService.create({
         name: newEmployeeName.trim(),
-        position: formData.position
+        position: newEmployeePosition
       });
 
       // Reload employees list
       await loadEmployees();
 
-      // Select the newly created employee
-      setFormData({ ...formData, employeeId: response.employee.id });
-
-      // Close the new employee form
-      setShowNewEmployeeForm(false);
+      // Close the employee modal
+      setShowEmployeeModal(false);
       setNewEmployeeName('');
+      setNewEmployeePosition('bartender');
 
       alert('Employee added successfully!');
     } catch (err) {
       alert('Failed to add employee: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleSelectEmployeeToEdit = (employeeId) => {
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (employee) {
+      setEditingEmployeeId(employeeId);
+      setNewEmployeeName(employee.name);
+      setNewEmployeePosition(employee.position);
+    }
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!newEmployeeName.trim()) {
+      alert('Please enter an employee name');
+      return;
+    }
+
+    try {
+      await employeesService.update(editingEmployeeId, {
+        name: newEmployeeName.trim(),
+        position: newEmployeePosition
+      });
+
+      // Reload employees list
+      await loadEmployees();
+
+      // Close the edit employee modal
+      setShowEditEmployeeModal(false);
+      setEditingEmployeeId(null);
+      setNewEmployeeName('');
+      setNewEmployeePosition('bartender');
+
+      alert('Employee updated successfully!');
+    } catch (err) {
+      alert('Failed to update employee: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -101,18 +137,19 @@ function Salary({ user }) {
     });
     setEditingId(null);
     setShowForm(false);
-    setShowNewEmployeeForm(false);
-    setNewEmployeeName('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        // await salaryService.update(editingId, formData);
+        await salariesService.update(editingId, {
+          amount: formData.amount,
+          notes: formData.notes
+        });
         alert('Salary updated successfully!');
       } else {
-        // await salaryService.create(formData);
+        await salariesService.create(formData);
         alert('Salary created successfully!');
       }
       setFormData({
@@ -124,8 +161,6 @@ function Salary({ user }) {
       });
       setEditingId(null);
       setShowForm(false);
-      setShowNewEmployeeForm(false);
-      setNewEmployeeName('');
       loadSalaries();
     } catch (err) {
       alert('Failed to save salary: ' + (err.response?.data?.error || err.message));
@@ -160,22 +195,47 @@ function Salary({ user }) {
       <div className="page-header">
         <h1>Salary</h1>
         {canManage && !showForm && (
-          <button
-            onClick={() => {
-              setEditingId(null);
-              setFormData({
-                date: getToday(),
-                amount: '',
-                employeeId: '',
-                position: 'bartender',
-                notes: ''
-              });
-              setShowForm(true);
-            }}
-            className="btn btn-primary"
-          >
-            + Add Salary
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setFormData({
+                  date: getToday(),
+                  amount: '',
+                  employeeId: '',
+                  position: 'bartender',
+                  notes: ''
+                });
+                setShowForm(true);
+              }}
+              className="btn btn-primary"
+            >
+              + Add Salary
+            </button>
+            <button
+              onClick={() => {
+                setNewEmployeeName('');
+                setNewEmployeePosition('bartender');
+                setShowEmployeeModal(true);
+              }}
+              className="btn"
+              style={{ backgroundColor: '#4CAF50', color: 'white' }}
+            >
+              + Add Employee
+            </button>
+            <button
+              onClick={() => {
+                setEditingEmployeeId(null);
+                setNewEmployeeName('');
+                setNewEmployeePosition('bartender');
+                setShowEditEmployeeModal(true);
+              }}
+              className="btn"
+              style={{ backgroundColor: '#FF9800', color: 'white' }}
+            >
+              Edit Employee
+            </button>
+          </div>
         )}
       </div>
 
@@ -209,19 +269,13 @@ function Salary({ user }) {
               <select
                 value={formData.employeeId}
                 onChange={(e) => {
-                  if (e.target.value === 'add_new') {
-                    setShowNewEmployeeForm(true);
-                    setFormData({ ...formData, employeeId: '', position: 'bartender' });
-                  } else {
-                    // Find selected employee and auto-fill position
-                    const selectedEmployee = employees.find(emp => emp.id === e.target.value);
-                    setFormData({
-                      ...formData,
-                      employeeId: e.target.value,
-                      position: selectedEmployee ? selectedEmployee.position : 'bartender'
-                    });
-                    setShowNewEmployeeForm(false);
-                  }
+                  // Find selected employee and auto-fill position
+                  const selectedEmployee = employees.find(emp => emp.id === e.target.value);
+                  setFormData({
+                    ...formData,
+                    employeeId: e.target.value,
+                    position: selectedEmployee ? selectedEmployee.position : 'bartender'
+                  });
                 }}
                 required
                 disabled={!!editingId}
@@ -230,50 +284,15 @@ function Salary({ user }) {
                 {employees.map(emp => (
                   <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
-                <option value="add_new">+ Add New Employee</option>
               </select>
             </div>
-            {showNewEmployeeForm && (
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label>New Employee Name</label>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input
-                    type="text"
-                    value={newEmployeeName}
-                    onChange={(e) => setNewEmployeeName(e.target.value)}
-                    placeholder="Enter employee name"
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddNewEmployee}
-                    className="btn"
-                    style={{ backgroundColor: '#4CAF50', color: 'white', padding: '8px 16px' }}
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewEmployeeForm(false);
-                      setNewEmployeeName('');
-                      setFormData({ ...formData, employeeId: '' });
-                    }}
-                    className="btn"
-                    style={{ backgroundColor: '#666', color: 'white', padding: '8px 16px' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
             <div className="form-group">
-              <label>Position</label>
+              <label>Position (Automatic)</label>
               <select
                 value={formData.position}
                 onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                 required
-                disabled={formData.employeeId && !showNewEmployeeForm}
+                disabled
               >
                 <option value="bartender">Bartender</option>
                 <option value="waitress">Waitress</option>
@@ -302,6 +321,138 @@ function Salary({ user }) {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {showEmployeeModal && canManage && (
+        <div className="card mb-4">
+          <h3>Add New Employee</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Employee Name</label>
+              <input
+                type="text"
+                value={newEmployeeName}
+                onChange={(e) => setNewEmployeeName(e.target.value)}
+                placeholder="Enter employee name"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Position</label>
+              <select
+                value={newEmployeePosition}
+                onChange={(e) => setNewEmployeePosition(e.target.value)}
+                required
+              >
+                <option value="bartender">Bartender</option>
+                <option value="waitress">Waitress</option>
+                <option value="manager">Manager</option>
+                <option value="security">Security</option>
+                <option value="cleaner">Cleaner</option>
+                <option value="cook">Cook</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', gridColumn: '1 / -1' }}>
+              <button
+                type="button"
+                onClick={handleAddEmployeeFromModal}
+                className="btn"
+                style={{ backgroundColor: '#4CAF50', color: 'white' }}
+              >
+                Add Employee
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmployeeModal(false);
+                  setNewEmployeeName('');
+                  setNewEmployeePosition('bartender');
+                }}
+                className="btn"
+                style={{ backgroundColor: '#666', color: 'white' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditEmployeeModal && canManage && (
+        <div className="card mb-4">
+          <h3>Edit Employee</h3>
+          <div className="form-grid">
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>Select Employee to Edit</label>
+              <select
+                value={editingEmployeeId || ''}
+                onChange={(e) => handleSelectEmployeeToEdit(e.target.value)}
+                required
+              >
+                <option value="">Select Employee</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name} - {emp.position}</option>
+                ))}
+              </select>
+            </div>
+            {editingEmployeeId && (
+              <>
+                <div className="form-group">
+                  <label>Employee Name</label>
+                  <input
+                    type="text"
+                    value={newEmployeeName}
+                    onChange={(e) => setNewEmployeeName(e.target.value)}
+                    placeholder="Enter employee name"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Position</label>
+                  <select
+                    value={newEmployeePosition}
+                    onChange={(e) => setNewEmployeePosition(e.target.value)}
+                    required
+                  >
+                    <option value="bartender">Bartender</option>
+                    <option value="waitress">Waitress</option>
+                    <option value="manager">Manager</option>
+                    <option value="security">Security</option>
+                    <option value="cleaner">Cleaner</option>
+                    <option value="cook">Cook</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: '10px', gridColumn: '1 / -1' }}>
+              {editingEmployeeId && (
+                <button
+                  type="button"
+                  onClick={handleUpdateEmployee}
+                  className="btn"
+                  style={{ backgroundColor: '#FF9800', color: 'white' }}
+                >
+                  Update Employee
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditEmployeeModal(false);
+                  setEditingEmployeeId(null);
+                  setNewEmployeeName('');
+                  setNewEmployeePosition('bartender');
+                }}
+                className="btn"
+                style={{ backgroundColor: '#666', color: 'white' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

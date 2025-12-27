@@ -101,7 +101,8 @@ class Sale {
         MIN(amount) as lowest_sale,
         COUNT(DISTINCT DATE(date)) as days_with_sales
        FROM sales
-       WHERE date >= $1 AND date <= $2`,
+       WHERE date >= $1 AND date <= $2
+         AND (category IS NULL OR category != 'ladydrink')`,
       [startDate, endDate]
     );
     return result.rows[0];
@@ -116,6 +117,7 @@ class Sale {
         SUM(amount) as total
        FROM sales
        WHERE date >= $1 AND date <= $2
+         AND (category IS NULL OR category != 'ladydrink')
        GROUP BY category
        ORDER BY total DESC`,
       [startDate, endDate]
@@ -148,6 +150,7 @@ class Sale {
         SUM(amount) as total
        FROM sales
        WHERE date >= $1 AND date <= $2
+         AND (category IS NULL OR category != 'ladydrink')
        GROUP BY date
        ORDER BY date`,
       [startDate, endDate]

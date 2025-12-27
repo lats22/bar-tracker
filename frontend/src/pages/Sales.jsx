@@ -3,6 +3,7 @@ import { salesService } from '../services/sales';
 import { ladiesService } from '../services/ladies';
 import { formatCurrency, formatNumber } from '../utils/format';
 import { formatDisplayDate, getToday, getThisMonth } from '../utils/date';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 function Sales({ user }) {
   const [sales, setSales] = useState([]);
@@ -10,6 +11,7 @@ function Sales({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [editingDate, setEditingDate] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
 
   // Ladies tracking
   const [ladies, setLadies] = useState([]);
@@ -36,14 +38,22 @@ function Sales({ user }) {
   const [gridData, setGridData] = useState(initializeGridData());
 
   useEffect(() => {
-    loadSales();
     loadLadies();
   }, []);
+
+  useEffect(() => {
+    loadSales();
+  }, [selectedMonth]);
 
   const loadSales = async () => {
     setLoading(true);
     try {
-      const period = getThisMonth();
+      const [year, month] = selectedMonth.split('-');
+      const monthDate = new Date(parseInt(year), parseInt(month) - 1);
+      const startDate = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+
+      const period = { start: startDate, end: endDate };
       const data = await salesService.getAll(period);
       setSales(data.sales);
 
@@ -120,7 +130,11 @@ function Sales({ user }) {
     dateSales.forEach(sale => {
       // Skip old ladydrink entries (legacy data)
       if (sale.category !== 'ladydrink') {
-        newGridData[sale.category][sale.payment_method] = sale.amount;
+        // Default to 'drinks' category if null (for imported data)
+        const category = sale.category || 'drinks';
+        if (newGridData[category]) {
+          newGridData[category][sale.payment_method] = sale.amount;
+        }
       }
     });
 
@@ -271,6 +285,19 @@ function Sales({ user }) {
   }, 0);
 
   const dailySales = groupSalesByDate();
+
+  // Generate month options for the last 12 months
+  const getMonthOptions = () => {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const value = format(date, 'yyyy-MM');
+      const label = format(date, 'MMMM yyyy');
+      options.push({ value, label });
+    }
+    return options;
+  };
 
   return (
     <div className="page">
@@ -484,9 +511,31 @@ function Sales({ user }) {
       )}
 
       <div className="card">
-        <div className="card-header">
-          <h3>Monthly Sales</h3>
-          <div className="stat-value success">{formatCurrency(totalSales)}</div>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+          <div>
+            <h3>Monthly Sales</h3>
+            <div className="stat-value success">{formatCurrency(totalSales)}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label htmlFor="sales-month-selector" style={{ fontWeight: 'normal', margin: 0 }}>Month:</label>
+            <select
+              id="sales-month-selector"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+            >
+              {getMonthOptions().map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {loading ? (
           <p>Loading...</p>

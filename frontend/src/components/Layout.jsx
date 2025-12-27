@@ -18,6 +18,9 @@ function Layout({ user, onLogout }) {
           {(user.role === 'admin' || user.role === 'manager') && (
             <Link to="/salary" className={isActive('/salary')}>Salary</Link>
           )}
+          {(user.role === 'admin' || user.role === 'manager') && (
+            <Link to="/import-sales" className={isActive('/import-sales')}>Import Excel</Link>
+          )}
           {user.role === 'admin' && (
             <Link to="/users" className={isActive('/users')}>Users</Link>
           )}

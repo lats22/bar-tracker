@@ -8,6 +8,7 @@ import Expenses from './pages/Expenses';
 import Salary from './pages/Salary';
 import Profile from './pages/Profile';
 import Users from './pages/Users';
+import ImportSales from './pages/ImportSales';
 import Layout from './components/Layout';
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
           <Route path="sales" element={<Sales user={user} />} />
           <Route path="expenses" element={<Expenses user={user} />} />
           <Route path="salary" element={<Salary user={user} />} />
+          <Route path="import-sales" element={<ImportSales user={user} />} />
           <Route path="profile" element={<Profile user={user} />} />
           {user && user.role === 'admin' && <Route path="users" element={<Users user={user} />} />}
         </Route>

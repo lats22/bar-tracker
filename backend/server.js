@@ -13,6 +13,7 @@ const expensesRoutes = require('./routes/expenses');
 const reportsRoutes = require('./routes/reports');
 const ladiesRoutes = require('./routes/ladies');
 const employeesRoutes = require('./routes/employees');
+const salariesRoutes = require('./routes/salaries');
 
 // Import database config to test connection
 const pool = require('./config/database');
@@ -21,6 +22,9 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust proxy - required when running behind nginx/reverse proxy
+app.set('trust proxy', true);
 
 // Security middleware - configure helmet for serving frontend
 app.use(
@@ -82,6 +86,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/ladies', ladiesRoutes);
 app.use('/api/employees', employeesRoutes);
+app.use('/api/salaries', salariesRoutes);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -171,6 +176,85 @@ app.post('/api/upload-favicon', upload.single('image'), (req, res) => {
   fs.unlinkSync(req.file.path);
 
   res.send('Favicon uploaded successfully');
+});
+
+// Configure multer for Excel file uploads
+const excelStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname);
+    cb(null, `sales_import_${timestamp}${ext}`);
+  }
+});
+
+const excelUpload = multer({
+  storage: excelStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx' || ext === '.xls') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) are allowed'));
+    }
+  }
+});
+
+// Excel upload and import endpoint
+app.post('/api/upload-sales-excel', excelUpload.single('excelFile'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { dryRun } = req.body;
+
+    // Import the utility
+    const importSalesFromExcel = require('./utils/importSalesFromExcel');
+
+    // Get user ID from auth token (if available)
+    let userId = null;
+    if (req.user) {
+      userId = req.user.id;
+    }
+
+    // Process the Excel file
+    const results = await importSalesFromExcel(req.file.path, {
+      userId: userId,
+      dryRun: dryRun === 'true' || dryRun === true
+    });
+
+    // Clean up uploaded file after processing
+    if (!dryRun && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.json({
+      success: true,
+      message: dryRun ? 'Dry run completed' : 'Import completed successfully',
+      results: results
+    });
+
+  } catch (error) {
+    console.error('Excel upload error:', error);
+
+    // Clean up file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Serve background image with correct extension

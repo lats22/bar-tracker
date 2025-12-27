@@ -1,5 +1,6 @@
 const Sale = require('../models/Sale');
 const Expense = require('../models/Expense');
+const Salary = require('../models/Salary');
 const pool = require('../config/database');
 
 // Get comprehensive financial report
@@ -21,10 +22,14 @@ exports.getFinancialReport = async (req, res) => {
     const expensesByCategory = await Expense.getByCategory(startDate, endDate);
     const dailyExpenses = await Expense.getDailyExpenses(startDate, endDate);
 
+    // Get salary data
+    const salariesSummary = await Salary.getSummary(startDate, endDate);
+
     // Calculate profit/loss
     const totalSales = parseFloat(salesSummary.total_sales || 0);
     const totalExpenses = parseFloat(expensesSummary.total_expenses || 0);
-    const netProfit = totalSales - totalExpenses;
+    const totalSalaries = parseFloat(salariesSummary.total_amount || 0);
+    const netProfit = totalSales - totalExpenses - totalSalaries;
     const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
     // Combine daily data
@@ -42,9 +47,13 @@ exports.getFinancialReport = async (req, res) => {
         byCategory: expensesByCategory,
         daily: dailyExpenses
       },
+      salaries: {
+        summary: salariesSummary
+      },
       financials: {
         totalSales,
         totalExpenses,
+        totalSalaries,
         netProfit,
         profitMargin: profitMargin.toFixed(2)
       },
@@ -59,38 +68,40 @@ exports.getFinancialReport = async (req, res) => {
 // Get dashboard statistics
 exports.getDashboard = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const now = new Date();
 
-    // Today's stats
-    const todaySales = await Sale.getSummary(today, today);
-    const todayExpenses = await Expense.getSummary(today, today);
+    // Calculate last 3 months
+    const months = [];
+    for (let i = 2; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
 
-    // This week's stats
-    const weekSales = await Sale.getSummary(weekAgo, today);
-    const weekExpenses = await Expense.getSummary(weekAgo, today);
+      months.push({
+        name: monthDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+        start: monthStart.toISOString().split('T')[0],
+        end: monthEnd.toISOString().split('T')[0]
+      });
+    }
 
-    // This month's stats
-    const monthSales = await Sale.getSummary(monthAgo, today);
-    const monthExpenses = await Expense.getSummary(monthAgo, today);
+    // Get data for each month
+    const monthsData = [];
+    for (const month of months) {
+      const sales = await Sale.getSummary(month.start, month.end);
+      const expenses = await Expense.getSummary(month.start, month.end);
+      const salaries = await Salary.getSummary(month.start, month.end);
+
+      monthsData.push({
+        name: month.name,
+        sales: parseFloat(sales.total_sales || 0),
+        expenses: parseFloat(expenses.total_expenses || 0),
+        salaries: parseFloat(salaries.total_amount || 0),
+        profit: parseFloat(sales.total_sales || 0) - parseFloat(expenses.total_expenses || 0) - parseFloat(salaries.total_amount || 0)
+      });
+    }
 
     res.json({
-      today: {
-        sales: parseFloat(todaySales.total_sales || 0),
-        expenses: parseFloat(todayExpenses.total_expenses || 0),
-        profit: parseFloat(todaySales.total_sales || 0) - parseFloat(todayExpenses.total_expenses || 0)
-      },
-      thisWeek: {
-        sales: parseFloat(weekSales.total_sales || 0),
-        expenses: parseFloat(weekExpenses.total_expenses || 0),
-        profit: parseFloat(weekSales.total_sales || 0) - parseFloat(weekExpenses.total_expenses || 0)
-      },
-      thisMonth: {
-        sales: parseFloat(monthSales.total_sales || 0),
-        expenses: parseFloat(monthExpenses.total_expenses || 0),
-        profit: parseFloat(monthSales.total_sales || 0) - parseFloat(monthExpenses.total_expenses || 0)
-      }
+      months: monthsData
     });
   } catch (error) {
     console.error('Get dashboard error:', error);

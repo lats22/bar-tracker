@@ -7,6 +7,7 @@ function Expenses({ user }) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     date: getToday(),
     amount: '',
@@ -33,20 +34,50 @@ function Expenses({ user }) {
     }
   };
 
+  const handleEdit = (expense) => {
+    setFormData({
+      date: expense.date,
+      amount: expense.amount,
+      category: expense.category,
+      description: expense.description || ''
+    });
+    setEditingId(expense.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      date: getToday(),
+      amount: '',
+      category: 'electricity',
+      description: ''
+    });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await expensesService.create(formData);
+      if (editingId) {
+        await expensesService.update(editingId, formData);
+        alert('Expense updated successfully!');
+      } else {
+        await expensesService.create(formData);
+        alert('Expense created successfully!');
+      }
       setFormData({
         date: getToday(),
         amount: '',
         category: 'electricity',
         description: ''
       });
+      setEditingId(null);
       setShowForm(false);
       loadExpenses();
     } catch (err) {
-      alert('Failed to create expense: ' + (err.response?.data?.error || err.message));
+      alert('Failed to save expense: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -56,16 +87,28 @@ function Expenses({ user }) {
     <div className="page">
       <div className="page-header">
         <h1>Expenses</h1>
-        {canManage && (
-          <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-            {showForm ? 'Cancel' : '+ Add Expense'}
+        {canManage && !showForm && (
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setFormData({
+                date: getToday(),
+                amount: '',
+                category: 'electricity',
+                description: ''
+              });
+              setShowForm(true);
+            }}
+            className="btn btn-primary"
+          >
+            + Add Expense
           </button>
         )}
       </div>
 
       {showForm && canManage && (
         <div className="card mb-4">
-          <h3>New Expense</h3>
+          <h3>{editingId ? 'Edit Expense' : 'New Expense'}</h3>
           <form onSubmit={handleSubmit} className="form-grid">
             <div className="form-group">
               <label>Date</label>
@@ -115,7 +158,14 @@ function Expenses({ user }) {
                 placeholder="Expense description"
               />
             </div>
-            <button type="submit" className="btn btn-primary">Save Expense</button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" className="btn btn-primary">
+                {editingId ? 'Update Expense' : 'Save Expense'}
+              </button>
+              <button type="button" onClick={handleCancel} className="btn" style={{ backgroundColor: '#666', color: 'white' }}>
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -137,21 +187,38 @@ function Expenses({ user }) {
                   <th>Category</th>
                   <th>Description</th>
                   <th>By</th>
+                  {canManage && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {expenses.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center' }}>No expenses found</td>
+                    <td colSpan={canManage ? "6" : "5"} style={{ textAlign: 'center' }}>No expenses found</td>
                   </tr>
                 ) : (
                   expenses.map((expense) => (
                     <tr key={expense.id}>
                       <td>{formatDisplayDate(expense.date)}</td>
                       <td className="danger">{formatCurrency(expense.amount)}</td>
-                      <td>{expense.category}</td>
+                      <td style={{ textTransform: 'capitalize' }}>{expense.category.replace('_', ' ')}</td>
                       <td>{expense.description}</td>
                       <td>{expense.created_by_name}</td>
+                      {canManage && (
+                        <td>
+                          <button
+                            onClick={() => handleEdit(expense)}
+                            className="btn"
+                            style={{
+                              padding: '5px 15px',
+                              fontSize: '14px',
+                              backgroundColor: '#2196F3',
+                              color: 'white'
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
